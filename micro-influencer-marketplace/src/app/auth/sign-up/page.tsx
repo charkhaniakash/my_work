@@ -16,11 +16,12 @@ export default function SignUp() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     try {
       await signUp(email, password, fullName, role)
-      router.push('/dashboard')
     } catch (error) {
-      setError('Error creating account. Please try again.')
+      console.error('SignUp Error:', error)
+      setError(error instanceof Error ? error.message : 'Error creating account. Please try again.')
     }
   }
 

@@ -31,15 +31,44 @@ export async function middleware(req: NextRequest) {
 
   // Check if user has completed onboarding
   if (req.nextUrl.pathname !== '/onboarding') {
-    const { data: profile } = await supabase
-      .from(session.user.user_metadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single()
+    try {
+      // First get the user record
+      const { data: userRecord, error: userError } = await supabase
+        .from('users')
+        .select('id, role')
+        .eq('id', session.user.id)
+        .single()
 
-    if (!profile && req.nextUrl.pathname !== '/onboarding') {
-      // If no profile and not on onboarding page, redirect to onboarding
-      return NextResponse.redirect(new URL('/onboarding', req.url))
+      if (userError) {
+        console.error('User record error in middleware:', userError)
+        return NextResponse.redirect(new URL('/auth/sign-in', req.url))
+      }
+
+      if (!userRecord) {
+        console.error('User record not found in middleware')
+        return NextResponse.redirect(new URL('/auth/sign-in', req.url))
+      }
+
+      // Then check for profile
+      const { data: profile, error: profileError } = await supabase
+        .from(userRecord.role === 'brand' ? 'brand_profiles' : 'influencer_profiles')
+        .select('id')
+        .eq('user_id', userRecord.id)
+        .single()
+
+      if (profileError && profileError.code !== 'PGRST116') { // Ignore "not found" error
+        console.error('Profile check error in middleware:', profileError)
+        return NextResponse.redirect(new URL('/auth/sign-in', req.url))
+      }
+
+      if (!profile && req.nextUrl.pathname !== '/onboarding') {
+        // If no profile and not on onboarding page, redirect to onboarding
+        console.log('No profile found in middleware, redirecting to onboarding')
+        return NextResponse.redirect(new URL('/onboarding', req.url))
+      }
+    } catch (error) {
+      console.error('Middleware error:', error)
+      return NextResponse.redirect(new URL('/auth/sign-in', req.url))
     }
   }
 

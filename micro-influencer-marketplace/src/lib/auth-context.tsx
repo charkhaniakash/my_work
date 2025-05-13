@@ -48,14 +48,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       if (error) throw error
 
-      // Check if user has completed onboarding
-      const { data: profile } = await supabase
-        .from(data.user.user_metadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles')
-        .select('id')
-        .eq('user_id', data.user.id)
+      console.log('Auth user:', data.user)
+
+      // First get the user record
+      const { data: userRecord, error: userError } = await supabase
+        .from('users')
+        .select('id, role')
+        .eq('id', data.user.id)
         .single()
 
-      if (!profile) {
+      console.log('User record:', userRecord, 'Error:', userError)
+      if (!userRecord) {
         router.push('/onboarding')
       } else {
         router.push('/dashboard')
