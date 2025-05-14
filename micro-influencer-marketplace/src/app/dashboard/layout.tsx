@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { 
   LayoutDashboard, 
   MessageSquare, 
@@ -11,8 +11,12 @@ import {
   BarChart, 
   Settings,
   Menu,
-  X
+  X,
+  LogOut
 } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { toast } from 'react-hot-toast'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -30,6 +34,20 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
+  const { user } = useAuth()
+  const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      router.push('/auth/sign-in')
+      toast.success('Logged out successfully')
+    } catch (error) {
+      console.error('Error logging out:', error)
+      toast.error('Failed to log out')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -45,7 +63,7 @@ export default function DashboardLayout({
         {sidebarOpen && (
           <div className="fixed inset-0 z-40 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)}>
             <div className="fixed inset-y-0 left-0 w-64 bg-white" onClick={e => e.stopPropagation()}>
-              <SidebarContent pathname={pathname} />
+              <SidebarContent pathname={pathname} user={user} onLogout={handleLogout} />
             </div>
           </div>
         )}
@@ -54,7 +72,7 @@ export default function DashboardLayout({
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
-          <SidebarContent pathname={pathname} />
+          <SidebarContent pathname={pathname} user={user} onLogout={handleLogout} />
         </div>
       </div>
 
@@ -68,7 +86,11 @@ export default function DashboardLayout({
   )
 }
 
-function SidebarContent({ pathname }: { pathname: string }) {
+function SidebarContent({ pathname, user, onLogout }: { 
+  pathname: string
+  user: any
+  onLogout: () => Promise<void>
+}) {
   return (
     <>
       <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
@@ -103,25 +125,56 @@ function SidebarContent({ pathname }: { pathname: string }) {
         </nav>
       </div>
       <div className="flex flex-shrink-0 border-t border-gray-200 p-4">
-        <Link
-          href="/auth/sign-in"
-          className="group block w-full flex-shrink-0"
-        >
-          <div className="flex items-center">
-            <div>
-              <img
-                className="inline-block h-9 w-9 rounded-full"
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-                alt=""
-              />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                Sign In
-              </p>
+        {user ? (
+          <div className="group block w-full flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div>
+                  <img
+                    className="inline-block h-9 w-9 rounded-full"
+                    src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
+                    alt={user.full_name || 'User avatar'}
+                  />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    {user.full_name || user.email}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user.role}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onLogout}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
             </div>
           </div>
-        </Link>
+        ) : (
+          <Link
+            href="/auth/sign-in"
+            className="group block w-full flex-shrink-0"
+          >
+            <div className="flex items-center">
+              <div>
+                <img
+                  className="inline-block h-9 w-9 rounded-full"
+                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                  alt=""
+                />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                  Sign In
+                </p>
+              </div>
+            </div>
+          </Link>
+        )}
       </div>
     </>
   )
