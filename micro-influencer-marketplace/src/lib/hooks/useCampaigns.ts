@@ -15,6 +15,8 @@ export const useCampaigns = () => {
         setLoading(true)
         setError(null)
 
+        console.log("campaignData", supabase.auth.getUser())
+
         const { data, error } = await supabase
           .from('campaigns')
           .insert(campaignData)

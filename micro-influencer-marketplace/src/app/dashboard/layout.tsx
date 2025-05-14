@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -14,8 +15,7 @@ import {
   X,
   LogOut
 } from 'lucide-react'
-import { useAuth } from '@/lib/auth-context'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useUser, useClerk } from '@clerk/nextjs'
 import { toast } from 'react-hot-toast'
 
 const navigation = [
@@ -34,13 +34,13 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { user } = useUser()
+  const { signOut } = useClerk()
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut()
+      await signOut()
       router.push('/auth/sign-in')
       toast.success('Logged out successfully')
     } catch (error) {
@@ -97,26 +97,23 @@ function SidebarContent({ pathname, user, onLogout }: {
         <div className="flex flex-shrink-0 items-center px-4">
           <h1 className="text-xl font-bold">Micro-Influencer</h1>
         </div>
-        <nav className="mt-5 flex-1 space-y-1 bg-white px-2">
+        <nav className="mt-5 flex-1 space-y-1 px-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`
-                  group flex items-center px-2 py-2 text-sm font-medium rounded-md
-                  ${isActive
+                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  isActive
                     ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
-                `}
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
               >
                 <item.icon
-                  className={`
-                    mr-3 h-6 w-6 flex-shrink-0
-                    ${isActive ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500'}
-                  `}
-                  aria-hidden="true"
+                  className={`mr-3 h-6 w-6 flex-shrink-0 ${
+                    isActive ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500'
+                  }`}
                 />
                 {item.name}
               </Link>
@@ -124,6 +121,7 @@ function SidebarContent({ pathname, user, onLogout }: {
           })}
         </nav>
       </div>
+
       <div className="flex flex-shrink-0 border-t border-gray-200 p-4">
         {user ? (
           <div className="group block w-full flex-shrink-0">
@@ -132,16 +130,16 @@ function SidebarContent({ pathname, user, onLogout }: {
                 <div>
                   <img
                     className="inline-block h-9 w-9 rounded-full"
-                    src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
-                    alt={user.full_name || 'User avatar'}
+                    src={user.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.emailAddresses[0].emailAddress}`}
+                    alt={user.fullName || 'User avatar'}
                   />
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                    {user.full_name || user.email}
+                    {user.fullName || user.emailAddresses[0].emailAddress}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {user.role}
+                    {user.publicMetadata.role || 'User'}
                   </p>
                 </div>
               </div>

@@ -82,12 +82,16 @@ export default function Campaigns() {
       return
     }
 
+    console.log("createCampaign", createCampaign)
+
     try {
       const campaign = await createCampaign({
         ...formData as Omit<Campaign, 'id' | 'created_at' | 'updated_at'>,
         brand_id: user.id,
         budget: Number(formData.budget)
       })
+
+      console.log("campaign", campaign)
 
       if (campaign) {
         toast.success('Campaign created successfully')
