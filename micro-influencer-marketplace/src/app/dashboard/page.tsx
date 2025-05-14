@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuth } from '@/lib/auth-context'
 import { 
   Users,
   MessageSquare,
@@ -16,8 +15,7 @@ const stats = [
 ]
 
 export default function Dashboard() {
-  const { user } = useAuth()
-
+  // Removed auth check temporarily
   return (
     <div className="space-y-6">
       <div>

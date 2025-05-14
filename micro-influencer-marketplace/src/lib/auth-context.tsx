@@ -59,8 +59,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('User record:', userRecord, 'Error:', userError)
       if (!userRecord) {
+        console.log('No user record found, ....g')
         router.push('/onboarding')
       } else {
+        console.log('User record found, ....')
         router.push('/dashboard')
       }
     } catch (error) {

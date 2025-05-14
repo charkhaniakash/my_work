@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
 import { 
   LayoutDashboard, 
   MessageSquare, 
@@ -31,7 +30,6 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -47,7 +45,7 @@ export default function DashboardLayout({
         {sidebarOpen && (
           <div className="fixed inset-0 z-40 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)}>
             <div className="fixed inset-y-0 left-0 w-64 bg-white" onClick={e => e.stopPropagation()}>
-              <SidebarContent pathname={pathname} signOut={signOut} />
+              <SidebarContent pathname={pathname} />
             </div>
           </div>
         )}
@@ -56,7 +54,7 @@ export default function DashboardLayout({
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
-          <SidebarContent pathname={pathname} signOut={signOut} />
+          <SidebarContent pathname={pathname} />
         </div>
       </div>
 
@@ -70,7 +68,7 @@ export default function DashboardLayout({
   )
 }
 
-function SidebarContent({ pathname, signOut }: { pathname: string, signOut: () => Promise<void> }) {
+function SidebarContent({ pathname }: { pathname: string }) {
   return (
     <>
       <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
@@ -105,8 +103,8 @@ function SidebarContent({ pathname, signOut }: { pathname: string, signOut: () =
         </nav>
       </div>
       <div className="flex flex-shrink-0 border-t border-gray-200 p-4">
-        <button
-          onClick={() => signOut()}
+        <Link
+          href="/auth/sign-in"
           className="group block w-full flex-shrink-0"
         >
           <div className="flex items-center">
@@ -119,11 +117,11 @@ function SidebarContent({ pathname, signOut }: { pathname: string, signOut: () =
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                Sign Out
+                Sign In
               </p>
             </div>
           </div>
-        </button>
+        </Link>
       </div>
     </>
   )

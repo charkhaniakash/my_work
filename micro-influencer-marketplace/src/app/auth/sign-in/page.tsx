@@ -16,7 +16,7 @@ export default function SignIn() {
     e.preventDefault()
     try {
       await signIn(email, password)
-      router.push('/dashboard')
+      // router.push('/dashboard')
     } catch (error) {
       setError('Invalid email or password')
     }
