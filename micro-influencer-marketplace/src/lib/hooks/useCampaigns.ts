@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { Campaign, CampaignApplication } from '@/lib/types/database'
-import { useAuth } from '../auth-context'
+import { useUser } from '@clerk/nextjs'
 
 export const useCampaigns = () => {
   const { supabase } = useSupabase()
-  const { user } = useAuth()
+  const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,7 +15,26 @@ export const useCampaigns = () => {
         setLoading(true)
         setError(null)
 
-        console.log("campaignData", supabase.auth.getUser())
+        console.log('Current Clerk user:', user)
+
+        if (!user?.id) {
+          throw new Error('User not authenticated')
+        }
+
+        // First check if the user exists and is a brand
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')  // Select all fields to see what we have
+          .eq('id', user.id)
+          .single()
+
+        console.log('Supabase user data:', userData)
+        console.log('Supabase user error:', userError)
+
+        if (userError) throw userError
+        if (!userData || userData.role !== 'brand') {
+          throw new Error('Only brands can create campaigns')
+        }
 
         const { data, error } = await supabase
           .from('campaigns')
@@ -23,16 +42,20 @@ export const useCampaigns = () => {
           .select()
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Campaign creation error:', error)
+          throw error
+        }
         return data
       } catch (err) {
+        console.error('Campaign creation error:', err)
         setError(err instanceof Error ? err.message : 'Failed to create campaign')
         return null
       } finally {
         setLoading(false)
       }
     },
-    [supabase]
+    [supabase, user]
   )
 
   const updateCampaign = useCallback(

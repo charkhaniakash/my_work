@@ -27,7 +27,7 @@ export default function RootLayout({
           <SupabaseProvider>
             <AuthProvider>
               <main className="min-h-screen bg-background">
-                {children}
+        {children}
               </main>
               <Toaster />
               {/* <MessageNotification /> */}

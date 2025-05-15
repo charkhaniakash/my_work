@@ -5,7 +5,7 @@ import { FileText, Plus, Calendar, DollarSign, Users, ChevronRight, X } from 'lu
 import { useCampaigns } from '@/lib/hooks/useCampaigns'
 import { Campaign } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
-import { useAuth } from '@/lib/auth-context'
+import { useUser } from '@clerk/nextjs'
 
 const nichesOptions = [
   'Fashion',
@@ -21,7 +21,7 @@ const nichesOptions = [
 ]
 
 export default function Campaigns() {
-  const { user } = useAuth()
+  const { user } = useUser()
   const {
     loading,
     error,
@@ -82,16 +82,26 @@ export default function Campaigns() {
       return
     }
 
-    console.log("createCampaign", createCampaign)
-
     try {
+      // Validate required fields
+      if (!formData.title || !formData.description || !formData.budget || !formData.start_date || !formData.end_date) {
+        toast.error('Please fill in all required fields')
+        return
+      }
+
+      // Convert requirements to array if it's a string
+      const requirements = typeof formData.requirements === 'string' 
+        ? [formData.requirements]
+        : formData.requirements || []
+
       const campaign = await createCampaign({
         ...formData as Omit<Campaign, 'id' | 'created_at' | 'updated_at'>,
         brand_id: user.id,
-        budget: Number(formData.budget)
+        budget: Number(formData.budget),
+        requirements: requirements,
+        target_niche: formData.target_niche || [],
+        status: 'draft'
       })
-
-      console.log("campaign", campaign)
 
       if (campaign) {
         toast.success('Campaign created successfully')
@@ -110,7 +120,8 @@ export default function Campaigns() {
         setShowCreateModal(false)
       }
     } catch (error) {
-      toast.error('Failed to create campaign')
+      console.error('Campaign creation error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to create campaign')
     }
   }
 

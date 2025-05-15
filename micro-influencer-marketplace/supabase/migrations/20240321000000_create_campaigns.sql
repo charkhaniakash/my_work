@@ -34,6 +34,7 @@ CREATE POLICY "Brands can create campaigns"
     ON campaigns FOR INSERT
     TO authenticated
     WITH CHECK (
+        auth.uid() = brand_id AND
         EXISTS (
             SELECT 1 FROM users
             WHERE users.id = auth.uid()
