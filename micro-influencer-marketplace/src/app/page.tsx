@@ -1,10 +1,15 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
-import { useAuth } from '@/lib/auth-context'
+import { useUser } from '@clerk/nextjs'
 
 export default function Home() {
-  const { user } = useAuth()
+  const { user, isLoaded } = useUser()
+
+  if (!isLoaded) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-24">
@@ -38,7 +43,7 @@ export default function Home() {
             </Link>
           </>
         )}
-        </div>
+      </div>
     </div>
   )
-}
+} 

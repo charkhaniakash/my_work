@@ -50,7 +50,7 @@ CREATE POLICY "Everyone can view active campaigns"
 CREATE POLICY "Brands can view their own campaigns"
     ON campaigns FOR SELECT
     TO authenticated
-    USING (brand_id = auth.uid());
+    USING (auth.uid() = brand_id);
 
 CREATE POLICY "Brands can update their own campaigns"
     ON campaigns FOR UPDATE
@@ -116,5 +116,45 @@ CREATE TRIGGER set_campaigns_updated_at
 
 CREATE TRIGGER set_campaign_applications_updated_at
     BEFORE UPDATE ON campaign_applications
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create messages table
+CREATE TABLE messages (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Add RLS policies for messages
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own messages"
+    ON messages FOR SELECT
+    TO authenticated
+    USING (
+        auth.uid() = sender_id
+        OR
+        auth.uid() = receiver_id
+    );
+
+CREATE POLICY "Users can send messages"
+    ON messages FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        auth.uid() = sender_id
+    );
+
+CREATE POLICY "Users can delete their own messages"
+    ON messages FOR DELETE
+    TO authenticated
+    USING (auth.uid() = sender_id);
+
+-- Create updated_at trigger for messages
+CREATE TRIGGER set_messages_updated_at
+    BEFORE UPDATE ON messages
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column(); 

@@ -17,11 +17,13 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function CampaignDetail() {
   const params = useParams()
   const router = useRouter()
-  const { getCampaigns, updateCampaign, getApplications, updateApplication } = useCampaigns()
+  const { updateCampaign, getApplications, updateApplication } = useCampaigns()
+  const supabase = createClientComponentClient()
   
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [applications, setApplications] = useState<CampaignApplication[]>([])
@@ -37,10 +39,20 @@ export default function CampaignDetail() {
       setLoading(true)
       setError(null)
 
-      const campaigns = await getCampaigns({ id: params.id as string })
-      if (campaigns && campaigns.length > 0) {
-        setCampaign(campaigns[0])
-        loadApplications(campaigns[0].id)
+      const { data: campaign, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+
+      if (error) {
+        setError('Failed to load campaign')
+        return
+      }
+
+      if (campaign) {
+        setCampaign(campaign)
+        loadApplications(campaign.id)
       } else {
         setError('Campaign not found')
       }

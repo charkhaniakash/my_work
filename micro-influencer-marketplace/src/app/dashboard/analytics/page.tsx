@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
+import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Campaign, CampaignApplication } from '@/lib/types/database'
 import { 
@@ -14,6 +14,7 @@ import {
   XCircle,
   FileText
 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 type Analytics = {
   totalCampaigns: number
@@ -29,7 +30,7 @@ type Analytics = {
 }
 
 export default function Analytics() {
-  const { user } = useAuth()
+  const { user, isLoaded } = useUser()
   const [analytics, setAnalytics] = useState<Analytics>({
     totalCampaigns: 0,
     activeCampaigns: 0,
@@ -46,16 +47,16 @@ export default function Analytics() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    if (user) {
+    if (isLoaded && user) {
       loadAnalytics()
     }
-  }, [user])
+  }, [isLoaded, user])
 
   const loadAnalytics = async () => {
     try {
       if (!user) return
 
-      if (user.user_metadata.role === 'brand') {
+      if (user.publicMetadata.role === 'brand') {
         // Load brand analytics
         const { data: campaigns, error: campaignsError } = await supabase
           .from('campaigns')
@@ -90,6 +91,7 @@ export default function Analytics() {
       }
     } catch (error) {
       console.error('Error loading analytics:', error)
+      toast.error('Failed to load analytics')
     } finally {
       setLoading(false)
     }
@@ -114,16 +116,16 @@ export default function Analytics() {
       acceptedApplications: applications.filter(a => a.status === 'accepted').length,
       pendingApplications: applications.filter(a => a.status === 'pending').length,
       rejectedApplications: applications.filter(a => a.status === 'rejected').length,
-      totalBudget: campaigns.reduce((sum, campaign) => sum + campaign.budget, 0),
+      totalBudget: campaigns.reduce((sum, campaign) => sum + (campaign.budget || 0), 0),
       averageRate: applications.length
-        ? applications.reduce((sum, app) => sum + app.proposed_rate, 0) / applications.length
+        ? applications.reduce((sum, app) => sum + (app.proposed_rate || 0), 0) / applications.length
         : 0,
       campaignsByStatus,
       applicationsByMonth
     }
   }
 
-  if (loading) {
+  if (!isLoaded || loading) {
     return <div>Loading...</div>
   }
 

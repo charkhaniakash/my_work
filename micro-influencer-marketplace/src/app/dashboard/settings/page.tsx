@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
+import React, { useEffect, useState } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { User, BrandProfile, InfluencerProfile } from '@/lib/types/database'
@@ -10,7 +10,7 @@ import { Camera, Save } from 'lucide-react'
 type Profile = BrandProfile | InfluencerProfile
 
 export default function Settings() {
-  const { user } = useAuth()
+  const { user, isLoaded } = useUser()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -39,10 +39,10 @@ export default function Settings() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    if (user) {
+    if (isLoaded && user) {
       loadProfile()
     }
-  }, [user])
+  }, [isLoaded, user])
 
   const loadProfile = async () => {
     try {
@@ -58,7 +58,7 @@ export default function Settings() {
       if (userError) throw userError
 
       // Load profile data based on role
-      const table = user.user_metadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
+      const table = user.publicMetadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
       const { data: profileData, error: profileError } = await supabase
         .from(table)
         .select('*')
@@ -107,8 +107,8 @@ export default function Settings() {
       if (userError) throw userError
 
       // Update profile data
-      const table = user.user_metadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
-      const profileData = user.user_metadata.role === 'brand'
+      const table = user.publicMetadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
+      const profileData = user.publicMetadata.role === 'brand'
         ? {
             company_name: formData.company_name,
             industry: formData.industry,
@@ -170,7 +170,7 @@ export default function Settings() {
     }
   }
 
-  if (loading) {
+  if (!isLoaded || loading) {
     return <div>Loading...</div>
   }
 
@@ -257,7 +257,7 @@ export default function Settings() {
         </div>
 
         {/* Role-specific Information */}
-        {user?.user_metadata.role === 'brand' ? (
+        {user?.publicMetadata.role === 'brand' ? (
           <div className="overflow-hidden rounded-lg bg-white shadow">
             <div className="p-6">
               <h3 className="text-lg font-medium leading-6 text-gray-900">Brand Information</h3>

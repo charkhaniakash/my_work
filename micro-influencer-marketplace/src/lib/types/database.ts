@@ -8,11 +8,15 @@ export interface User {
   email: string
   full_name: string
   role: UserRole
+  avatar_url?: string
+  username?: string
+  bio?: string
+  location?: string
+  niches?: string[]
   created_at: string
   updated_at: string
   last_login: string | null
   is_verified: boolean
-  avatar_url: string | null
 }
 
 export interface BrandProfile {

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
-import { supabase } from '@/lib/supabase'
+import { useUser } from '@clerk/nextjs'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function Onboarding() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, isLoaded } = useUser()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
@@ -23,6 +23,7 @@ export default function Onboarding() {
       twitter: '',
     },
   })
+  const supabase = createClientComponentClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,7 +33,7 @@ export default function Onboarding() {
     setError('')
 
     try {
-      const profileData = user.user_metadata.role === 'brand'
+      const profileData = user.publicMetadata.role === 'brand'
         ? {
             user_id: user.id,
             company_name: formData.bio,
@@ -49,7 +50,7 @@ export default function Onboarding() {
           }
 
       const { error: profileError } = await supabase
-        .from(user.user_metadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles')
+        .from(user.publicMetadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles')
         .insert([profileData])
 
       if (profileError) {
@@ -85,7 +86,7 @@ export default function Onboarding() {
     }
   }
 
-  if (!user) return null
+  if (!isLoaded || !user) return null
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -94,7 +95,7 @@ export default function Onboarding() {
           Complete your profile
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Tell us more about {user?.user_metadata.role === 'brand' ? 'your brand' : 'yourself'}
+          Tell us more about {user.publicMetadata.role === 'brand' ? 'your brand' : 'yourself'}
         </p>
       </div>
 
@@ -118,7 +119,7 @@ export default function Onboarding() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-                {user.user_metadata.role === 'brand' ? 'Company Name' : 'Bio'}
+                {user.publicMetadata.role === 'brand' ? 'Company Name' : 'Bio'}
               </label>
               <div className="mt-1">
                 <textarea
@@ -150,7 +151,7 @@ export default function Onboarding() {
               </div>
             </div>
 
-            {user.user_metadata.role === 'brand' ? (
+            {user.publicMetadata.role === 'brand' ? (
               <>
                 <div>
                   <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
@@ -203,10 +204,10 @@ export default function Onboarding() {
                 </div>
               </>
             ) : (
-              <>
+              <div className="space-y-6">
                 <div>
                   <label htmlFor="social.instagram" className="block text-sm font-medium text-gray-700">
-                    Instagram Username
+                    Instagram Profile
                   </label>
                   <div className="mt-1">
                     <input
@@ -222,7 +223,7 @@ export default function Onboarding() {
 
                 <div>
                   <label htmlFor="social.tiktok" className="block text-sm font-medium text-gray-700">
-                    TikTok Username
+                    TikTok Profile
                   </label>
                   <div className="mt-1">
                     <input
@@ -235,14 +236,46 @@ export default function Onboarding() {
                     />
                   </div>
                 </div>
-              </>
+
+                <div>
+                  <label htmlFor="social.youtube" className="block text-sm font-medium text-gray-700">
+                    YouTube Channel
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      name="social.youtube"
+                      id="social.youtube"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      value={formData.socialLinks.youtube}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="social.twitter" className="block text-sm font-medium text-gray-700">
+                    Twitter Profile
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      name="social.twitter"
+                      id="social.twitter"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      value={formData.socialLinks.twitter}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </div>
             )}
 
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 disabled={loading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 {loading ? 'Saving...' : 'Complete Profile'}
               </button>

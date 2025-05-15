@@ -1,42 +1,151 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { useAuth } from '@/lib/auth-context'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Conversation, Message, User } from '@/lib/types/database'
+import { useUser } from '@clerk/nextjs'
+import { User } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
-import { Send, Clock, Search, Check, CheckCheck, Paperclip, Download, X } from 'lucide-react'
-import Image from 'next/image'
-import { debounce } from 'lodash'
-import { useTypingIndicator } from '@/lib/hooks/useTypingIndicator'
-import { useMessageAttachments } from '@/lib/hooks/useMessageAttachments'
-import { formatFileSize } from '@/lib/utils'
+import { Send, Users, Building2 } from 'lucide-react'
+
+interface Message {
+  id: string
+  sender_id: string
+  receiver_id: string
+  content: string
+  created_at: string
+}
 
 export default function Messages() {
-  const { user } = useAuth()
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const { user, isLoaded } = useUser()
+  const searchParams = useSearchParams()
+  const supabase = createClientComponentClient()
+  
+  const [contacts, setContacts] = useState<User[]>([])
+  const [selectedContact, setSelectedContact] = useState<User | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
-  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const supabase = createClientComponentClient()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { uploading, uploadAttachment, downloadAttachment, ALLOWED_FILE_TYPES, MAX_FILE_SIZE } =
-    useMessageAttachments()
-  const { typingUsers, updateTypingStatus, removeTypingStatus } = useTypingIndicator(
-    selectedConversation?.id || '',
-    user?.id || ''
-  )
 
   useEffect(() => {
-    loadConversations()
-    // Subscribe to new messages
+    if (isLoaded && user) {
+      loadContacts()
+      const contactId = searchParams.get('contact')
+      if (contactId) {
+        loadContact(contactId)
+      }
+    }
+  }, [isLoaded, user, searchParams])
+
+  useEffect(() => {
+    if (selectedContact) {
+      loadMessages()
+      const cleanup = subscribeToMessages()
+      return () => {
+        cleanup()
+      }
+    }
+  }, [selectedContact])
+
+  const loadContacts = async () => {
+    try {
+      // Get all users who have exchanged messages with the current user
+      const { data: messageUsers, error: messageError } = await supabase
+        .from('messages')
+        .select('sender_id, receiver_id')
+        .or(`sender_id.eq.${user?.id},receiver_id.eq.${user?.id}`)
+
+      if (messageError) throw messageError
+
+      // Get unique user IDs from messages
+      const userIds = new Set<string>()
+      messageUsers?.forEach(msg => {
+        if (msg.sender_id !== user?.id) userIds.add(msg.sender_id)
+        if (msg.receiver_id !== user?.id) userIds.add(msg.receiver_id)
+      })
+
+      // Fetch user details for all contacts
+      if (userIds.size > 0) {
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('*')
+          .in('id', Array.from(userIds))
+
+        if (usersError) throw usersError
+        setContacts(users || [])
+      }
+    } catch (error) {
+      console.error('Error loading contacts:', error)
+      toast.error('Failed to load contacts')
+    }
+  }
+
+  const loadContact = async (contactId: string) => {
+    try {
+      const { data: contact, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', contactId)
+        .single()
+
+      if (error) throw error
+      if (contact) {
+        setSelectedContact(contact)
+        if (!contacts.find(c => c.id === contact.id)) {
+          setContacts(prev => [...prev, contact])
+        }
+      }
+    } catch (error) {
+      console.error('Error loading contact:', error)
+      toast.error('Failed to load contact')
+    }
+  }
+
+  const loadMessages = async () => {
+    if (!selectedContact) return
+
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${user?.id},receiver_id.eq.${selectedContact.id}),and(sender_id.eq.${selectedContact.id},receiver_id.eq.${user?.id})`)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      setMessages(data || [])
+    } catch (error) {
+      console.error('Error loading messages:', error)
+      toast.error('Failed to load messages')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedContact || !newMessage.trim()) return
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user?.id,
+          receiver_id: selectedContact.id,
+          content: newMessage.trim()
+        })
+
+      if (error) throw error
+      setNewMessage('')
+    } catch (error) {
+      console.error('Error sending message:', error)
+      toast.error('Failed to send message')
+    }
+  }
+
+  const subscribeToMessages = () => {
+    if (!selectedContact) return () => {}
+
     const channel = supabase
       .channel('messages')
       .on(
@@ -45,14 +154,10 @@ export default function Messages() {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `receiver_id=eq.${user?.id}`
+          filter: `sender_id=eq.${selectedContact.id},receiver_id=eq.${user?.id}`
         },
         (payload) => {
-          const newMessage = payload.new as Message
-          if (newMessage.conversation_id === selectedConversation?.id) {
-            setMessages((prev) => [...prev, newMessage])
-          }
-          loadConversations() // Refresh conversation list to update last message
+          setMessages(prev => [...prev, payload.new as Message])
         }
       )
       .subscribe()
@@ -60,490 +165,153 @@ export default function Messages() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user?.id, selectedConversation?.id])
-
-  useEffect(() => {
-    if (selectedConversation) {
-      loadMessages(selectedConversation.id)
-    }
-  }, [selectedConversation])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredConversations(conversations)
-      return
-    }
-
-    const searchConversations = async () => {
-      setIsSearching(true)
-      try {
-        // Search in messages
-        const { data: messageResults, error: messageError } = await supabase
-          .from('messages')
-          .select('conversation_id')
-          .textSearch('content', searchQuery)
-          .limit(20)
-
-        if (messageError) throw messageError
-
-        const conversationIds = new Set([
-          ...messageResults.map((msg) => msg.conversation_id)
-        ])
-
-        // Filter conversations that match the search query
-        const filtered = conversations.filter(
-          (conv) =>
-            conversationIds.has(conv.id) ||
-            conv.brand?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conv.influencer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conv.campaign?.title?.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-
-        setFilteredConversations(filtered)
-      } catch (error) {
-        console.error('Error searching messages:', error)
-        toast.error('Failed to search messages')
-      } finally {
-        setIsSearching(false)
-      }
-    }
-
-    const debouncedSearch = debounce(searchConversations, 300)
-    debouncedSearch()
-
-    return () => {
-      debouncedSearch.cancel()
-    }
-  }, [searchQuery, conversations])
-
-  const loadConversations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .select(`
-          *,
-          brand:brand_id(*),
-          influencer:influencer_id(*),
-          campaign:campaign_id(*),
-          last_message:messages(*)
-        `)
-        .or(`brand_id.eq.${user?.id},influencer_id.eq.${user?.id}`)
-        .order('last_message_at', { ascending: false })
-
-      if (error) throw error
-
-      setConversations(data || [])
-
-      // Load unread counts for each conversation
-      const counts: Record<string, number> = {}
-      for (const conv of data || []) {
-        const { count } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('conversation_id', conv.id)
-          .eq('receiver_id', user?.id)
-          .eq('is_read', false)
-
-        counts[conv.id] = count || 0
-      }
-      setUnreadCounts(counts)
-    } catch (error) {
-      toast.error('Failed to load conversations')
-      console.error('Error:', error)
-    } finally {
-      setLoading(false)
-    }
   }
 
-  const loadMessages = async (conversationId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          attachments:message_attachments(*)
-        `)
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-
-      setMessages(data || [])
-      // Mark messages as read
-      await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('conversation_id', conversationId)
-        .eq('receiver_id', user?.id)
-    } catch (error) {
-      toast.error('Failed to load messages')
-      console.error('Error:', error)
-    }
-  }
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user?.id || !selectedConversation || !newMessage.trim()) return
-
-    try {
-      const { error } = await supabase.from('messages').insert({
-        conversation_id: selectedConversation.id,
-        sender_id: user.id,
-        receiver_id:
-          selectedConversation.brand_id === user.id
-            ? selectedConversation.influencer_id
-            : selectedConversation.brand_id,
-        content: newMessage.trim(),
-        campaign_id: selectedConversation.campaign_id
-      })
-
-      if (error) throw error
-
-      setNewMessage('')
-    } catch (error) {
-      toast.error('Failed to send message')
-      console.error('Error:', error)
-    }
-  }
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleString()
-  }
-
-  // Add typing indicator update on message input
-  const handleMessageInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewMessage(e.target.value)
-    updateTypingStatus()
-  }
-
-  // Handle file selection
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files?.length || !selectedConversation) return
-
-    try {
-      // First create the message
-      const { data: message, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          sender_id: user!.id,
-          receiver_id:
-            selectedConversation.brand_id === user!.id
-              ? selectedConversation.influencer_id
-              : selectedConversation.brand_id,
-          content: `Shared ${files.length} file${files.length > 1 ? 's' : ''}`,
-          campaign_id: selectedConversation.campaign_id
-        })
-        .select()
-        .single()
-
-      if (messageError) throw messageError
-
-      // Upload each file
-      for (const file of files) {
-        await uploadAttachment(file, message.id)
-      }
-
-      toast.success('Files uploaded successfully')
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to upload files')
-    } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-  }
-
-  const deleteMessage = async (messageId: string) => {
-    try {
-      setDeletingMessageId(messageId)
-      const { error } = await supabase
-        .from('messages')
-        .delete()
-        .eq('id', messageId)
-        .eq('sender_id', user?.id) // Ensure only sender can delete
-
-      if (error) throw error
-
-      // Update messages list
-      setMessages((prev) => prev.filter((msg) => msg.id !== messageId))
-      toast.success('Message deleted')
-    } catch (error) {
-      console.error('Error deleting message:', error)
-      toast.error('Failed to delete message')
-    } finally {
-      setDeletingMessageId(null)
-    }
-  }
-
-  if (loading) {
+  if (!isLoaded || loading) {
     return <div>Loading...</div>
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      {/* Conversations List */}
-      <div className="w-1/3 border-r border-gray-200 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Messages</h2>
-          <div className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search messages..."
-              className="w-full rounded-md border-gray-300 pl-10 focus:border-indigo-500 focus:ring-indigo-500"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+    <div className="flex h-[calc(100vh-4rem)] flex-col space-y-4">
+      <div className="flex flex-1 overflow-hidden rounded-lg bg-white shadow">
+        {/* Contacts Sidebar */}
+        <div className="w-64 border-r border-gray-200">
+          <div className="p-4">
+            <h2 className="text-lg font-medium text-gray-900">Messages</h2>
           </div>
-        </div>
-        <div className="divide-y divide-gray-200 overflow-y-auto flex-1">
-          {isSearching ? (
-            <div className="p-4 text-center text-gray-500">Searching...</div>
-          ) : filteredConversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">No conversations found</div>
-          ) : (
-            filteredConversations.map((conversation) => {
-              const otherUser =
-                conversation.brand_id === user?.id
-                  ? conversation.influencer
-                  : conversation.brand
-              const unreadCount = unreadCounts[conversation.id] || 0
-              return (
-                <button
-                  key={conversation.id}
-                  onClick={() => setSelectedConversation(conversation)}
-                  className={`w-full p-4 text-left hover:bg-gray-50 ${
-                    selectedConversation?.id === conversation.id
-                      ? 'bg-indigo-50'
-                      : ''
+          <nav className="flex-1 overflow-y-auto">
+            <ul role="list" className="divide-y divide-gray-200">
+              {contacts.map((contact) => (
+                <li
+                  key={contact.id}
+                  className={`cursor-pointer hover:bg-gray-50 ${
+                    selectedContact?.id === contact.id ? 'bg-gray-50' : ''
                   }`}
+                  onClick={() => setSelectedContact(contact)}
                 >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      {otherUser?.avatar_url ? (
-                        <Image
-                          src={otherUser.avatar_url}
-                          alt={otherUser.full_name}
-                          width={40}
-                          height={40}
-                          className="rounded-full"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <span className="text-indigo-800 font-medium">
-                            {otherUser?.full_name?.[0]}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-gray-900">
-                          {otherUser?.full_name}
-                        </p>
-                        {unreadCount > 0 && (
-                          <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-indigo-600 rounded-full">
-                            {unreadCount}
-                          </span>
+                  <div className="flex items-center px-4 py-4 sm:px-6">
+                    <div className="flex min-w-0 flex-1 items-center">
+                      <div className="flex-shrink-0">
+                        {contact.avatar_url ? (
+                          <img
+                            className="h-12 w-12 rounded-full"
+                            src={contact.avatar_url}
+                            alt={contact.full_name}
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                            {contact.role === 'brand' ? (
+                              <Building2 className="h-6 w-6 text-gray-400" />
+                            ) : (
+                              <Users className="h-6 w-6 text-gray-400" />
+                            )}
+                          </div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 truncate">
-                        {conversation.campaign?.title}
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0 text-xs text-gray-500">
-                      <Clock className="inline-block w-3 h-3 mr-1" />
-                      {formatDate(conversation.last_message_at)}
+                      <div className="min-w-0 flex-1 px-4">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {contact.full_name}
+                        </p>
+                        <p className="truncate text-sm text-gray-500">
+                          {contact.role}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </button>
-              )
-            })
-          )}
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 flex flex-col">
-        {selectedConversation ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {selectedConversation.brand_id === user?.id
-                    ? selectedConversation.influencer?.full_name
-                    : selectedConversation.brand?.full_name}
-                </h2>
-                {selectedConversation.campaign && (
-                  <span className="text-sm text-gray-500">
-                    • {selectedConversation.campaign.title}
-                  </span>
-                )}
+        {/* Chat Area */}
+        <div className="flex flex-1 flex-col">
+          {selectedContact ? (
+            <>
+              {/* Chat Header */}
+              <div className="border-b border-gray-200 p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    {selectedContact.avatar_url ? (
+                      <img
+                        className="h-12 w-12 rounded-full"
+                        src={selectedContact.avatar_url}
+                        alt={selectedContact.full_name}
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                        {selectedContact.role === 'brand' ? (
+                          <Building2 className="h-6 w-6 text-gray-400" />
+                        ) : (
+                          <Users className="h-6 w-6 text-gray-400" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="ml-4">
+                    <h2 className="text-lg font-medium text-gray-900">
+                      {selectedContact.full_name}
+                    </h2>
+                    <p className="text-sm text-gray-500 capitalize">
+                      {selectedContact.role}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Messages List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <div
-                    className={`max-w-[70%] rounded-lg px-4 py-2 group relative ${
-                      message.sender_id === user?.id
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm">{message.content}</p>
-                    
-                    {/* Attachments */}
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="mt-2 space-y-2">
-                        {message.attachments.map((attachment) => (
-                          <div
-                            key={attachment.id}
-                            className="flex items-center gap-2 p-2 rounded bg-opacity-10 bg-white"
-                          >
-                            <Paperclip className="h-4 w-4" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm truncate">{attachment.file_name}</p>
-                              <p className="text-xs opacity-75">
-                                {formatFileSize(attachment.file_size)}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => downloadAttachment(attachment)}
-                              className="p-1 hover:bg-white hover:bg-opacity-10 rounded"
-                            >
-                              <Download className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Message Actions */}
-                    {message.sender_id === user?.id && (
-                      <div className="absolute right-0 top-0 -mt-2 -mr-2 hidden group-hover:flex">
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to delete this message?')) {
-                              deleteMessage(message.id)
-                            }
-                          }}
-                          disabled={deletingMessageId === message.id}
-                          className="p-1 bg-red-500 hover:bg-red-600 rounded-full text-white shadow-lg"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <span
-                        className={`text-xs ${
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.sender_id === user?.id ? 'justify-end' : 'justify-start'
+                      }`}
+                    >
+                      <div
+                        className={`rounded-lg px-4 py-2 ${
                           message.sender_id === user?.id
-                            ? 'text-indigo-200'
-                            : 'text-gray-500'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-900'
                         }`}
                       >
-                        {formatDate(message.created_at)}
-                      </span>
-                      {message.sender_id === user?.id && (
-                        <span className="ml-1">
-                          {message.is_read ? (
-                            <CheckCheck className="h-4 w-4 text-indigo-200" />
-                          ) : (
-                            <Check className="h-4 w-4 text-indigo-200" />
-                          )}
-                        </span>
-                      )}
+                        <p className="text-sm">{message.content}</p>
+                        <p className="mt-1 text-xs opacity-75">
+                          {new Date(message.created_at).toLocaleTimeString()}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-              
-              {/* Typing Indicator */}
-              {typingUsers.length > 0 && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    {typingUsers.map((typingUser) => (
-                      <span key={typingUser.id} className="font-medium">
-                        {typingUser.full_name}
-                      </span>
-                    ))}
-                  </div>
-                  <span>
-                    {typingUsers.length === 1 ? 'is' : 'are'} typing
-                    <span className="animate-pulse">...</span>
-                  </span>
-                </div>
-              )}
+              </div>
 
-              <div ref={messagesEndRef} />
+              {/* Message Input */}
+              <div className="border-t border-gray-200 p-4">
+                <form onSubmit={sendMessage} className="flex space-x-4">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim()}
+                    className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center">
+              <p className="text-gray-500">Select a contact to start messaging</p>
             </div>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-gray-200">
-              <form onSubmit={sendMessage} className="flex items-center gap-4">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={handleMessageInput}
-                  onBlur={removeTypingStatus}
-                  placeholder="Type your message..."
-                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-                
-                {/* File Upload */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileSelect}
-                  accept={ALLOWED_FILE_TYPES.join(',')}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                  disabled={uploading}
-                >
-                  <Paperclip className="h-5 w-5" />
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim() || uploading}
-                  className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Send
-                </button>
-              </form>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-500">Select a conversation to start messaging</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
