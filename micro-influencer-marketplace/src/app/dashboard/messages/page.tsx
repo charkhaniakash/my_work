@@ -6,7 +6,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useUser } from '@clerk/nextjs'
 import { User } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
-import { Send, Users, Building2 } from 'lucide-react'
+import { Send, Users, Building2, UserPlus } from 'lucide-react'
 
 interface Message {
   id: string
@@ -26,16 +26,21 @@ export default function Messages() {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showNewMessageForm, setShowNewMessageForm] = useState(false)
+  const [email, setEmail] = useState('')
+  const [userSearchResults, setUserSearchResults] = useState<User[]>([])
 
+
+  console.log("contacts" , contacts)
   useEffect(() => {
     if (isLoaded && user) {
       loadContacts()
-      const contactId = searchParams.get('contact')
-      if (contactId) {
-        loadContact(contactId)
-      }
+      // const contactId = searchParams.get('contact')
+      // if (contactId) {
+      //   loadContact(contactId)
+      // }
     }
-  }, [isLoaded, user, searchParams])
+  }, [isLoaded, user])
 
   useEffect(() => {
     if (selectedContact) {
@@ -46,6 +51,12 @@ export default function Messages() {
       }
     }
   }, [selectedContact])
+
+  useEffect(() => {
+    if (showNewMessageForm && user) {
+      loadAllUsers()
+    }
+  }, [showNewMessageForm])
 
   const loadContacts = async () => {
     try {
@@ -65,18 +76,22 @@ export default function Messages() {
       })
 
       // Fetch user details for all contacts
-      if (userIds.size > 0) {
+      // if (userIds.size > 0) {
         const { data: users, error: usersError } = await supabase
           .from('users')
           .select('*')
           .in('id', Array.from(userIds))
 
+          console.log("users" , users)
+
         if (usersError) throw usersError
         setContacts(users || [])
-      }
+      // }
     } catch (error) {
       console.error('Error loading contacts:', error)
       toast.error('Failed to load contacts')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -167,8 +182,83 @@ export default function Messages() {
     }
   }
 
+  const loadAllUsers = async () => {
+    try {
+      console.log('Loading all users...')
+      setLoading(true)
+      // Load all users except the current user
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .neq('id', user?.id || '')
+        .limit(20)
+
+      if (error) throw error
+      
+      console.log('Found users:', users?.length || 0)
+      // Filter out existing contacts
+      const filteredUsers = (users || []).filter(u => 
+        !contacts.some(c => c.id === u.id)
+      )
+      
+      setUserSearchResults(filteredUsers)
+    } catch (error) {
+      console.error('Error loading users:', error)
+      toast.error('Failed to load users')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const searchUsers = async (email: string) => {
+    try {
+      console.log('Searching for users with email containing:', email)
+      setLoading(true)
+      
+      let query = supabase.from('users').select('*')
+      
+      // If email is provided, filter by it
+      if (email.trim()) {
+        query = query.ilike('email', `%${email}%`)
+      }
+      
+      // Don't include the current user
+      query = query.neq('id', user?.id || '')
+        
+      // Limit to reasonable number
+      query = query.limit(10)
+      
+      const { data: users, error } = await query
+      
+      if (error) throw error
+      
+      console.log('Search results:', users?.length || 0, 'users')
+      // Filter out existing contacts
+      const filteredUsers = (users || []).filter(u => 
+        !contacts.some(c => c.id === u.id)
+      )
+      
+      setUserSearchResults(filteredUsers)
+    } catch (error) {
+      console.error('Error searching users:', error)
+      toast.error('Failed to search users')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startConversation = (contact: User) => {
+    setSelectedContact(contact)
+    setContacts(prev => [...prev, contact])
+    setShowNewMessageForm(false)
+    setEmail('')
+    setUserSearchResults([])
+  }
+
   if (!isLoaded || loading) {
-    return <div>Loading...</div>
+    return <div className="flex justify-center items-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+    </div>
   }
 
   return (
@@ -176,51 +266,127 @@ export default function Messages() {
       <div className="flex flex-1 overflow-hidden rounded-lg bg-white shadow">
         {/* Contacts Sidebar */}
         <div className="w-64 border-r border-gray-200">
-          <div className="p-4">
+          <div className="p-4 flex justify-between items-center">
             <h2 className="text-lg font-medium text-gray-900">Messages</h2>
+            <button 
+              onClick={() => setShowNewMessageForm(true)}
+              className="p-1 rounded-full hover:bg-gray-100"
+              title="New message"
+            >
+              <UserPlus className="h-5 w-5 text-gray-500" />
+            </button>
           </div>
-          <nav className="flex-1 overflow-y-auto">
-            <ul role="list" className="divide-y divide-gray-200">
-              {contacts.map((contact) => (
-                <li
-                  key={contact.id}
-                  className={`cursor-pointer hover:bg-gray-50 ${
-                    selectedContact?.id === contact.id ? 'bg-gray-50' : ''
-                  }`}
-                  onClick={() => setSelectedContact(contact)}
+          
+          {/* New Message Form */}
+          {showNewMessageForm && (
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">New Message</h3>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Search by email or name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (e.target.value.trim()) {
+                      searchUsers(e.target.value)
+                    } else {
+                      loadAllUsers()
+                    }
+                  }}
+                  onKeyUp={(e) => e.key === 'Enter' && searchUsers(email)}
+                />
+                <button
+                  onClick={() => searchUsers(email)}
+                  className="w-full py-1 bg-indigo-600 text-white rounded text-sm"
                 >
-                  <div className="flex items-center px-4 py-4 sm:px-6">
-                    <div className="flex min-w-0 flex-1 items-center">
-                      <div className="flex-shrink-0">
-                        {contact.avatar_url ? (
-                          <img
-                            className="h-12 w-12 rounded-full"
-                            src={contact.avatar_url}
-                            alt={contact.full_name}
-                          />
+                  Search
+                </button>
+              </div>
+              
+              <div className="mt-3 border-t border-gray-200 pt-2">
+                <h4 className="text-xs font-medium text-gray-500 mb-1">
+                  {userSearchResults.length > 0 ? 'Available Users' : 'No users found'}
+                </h4>
+                <ul className="space-y-1 max-h-48 overflow-y-auto">
+                  {userSearchResults.map(user => (
+                    <li 
+                      key={user.id}
+                      className="p-2 hover:bg-gray-50 rounded cursor-pointer text-sm"
+                      onClick={() => startConversation(user)}
+                    >
+                      <div className="flex items-center">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} className="h-6 w-6 rounded-full mr-2" alt={user.full_name} />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                            {contact.role === 'brand' ? (
-                              <Building2 className="h-6 w-6 text-gray-400" />
-                            ) : (
-                              <Users className="h-6 w-6 text-gray-400" />
-                            )}
+                          <div className="h-6 w-6 rounded-full bg-gray-100 mr-2 flex items-center justify-center">
+                            <span className="text-xs">{user.full_name ? user.full_name[0] : '?'}</span>
                           </div>
                         )}
+                        <div>
+                          <span className="font-medium">{user.full_name || 'Unknown User'}</span>
+                          <span className="text-xs text-gray-500 ml-2">({user.role || 'user'})</span>
+                          <div className="text-xs text-gray-500">{user.email}</div>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1 px-4">
-                        <p className="truncate text-sm font-medium text-gray-900">
-                          {contact.full_name}
-                        </p>
-                        <p className="truncate text-sm text-gray-500">
-                          {contact.role}
-                        </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          <nav className="flex-1 overflow-y-auto">
+            {contacts.length > 0 ? (
+              <ul role="list" className="divide-y divide-gray-200">
+                {contacts.map((contact) => (
+                  <li
+                    key={contact.id}
+                    className={`cursor-pointer hover:bg-gray-50 ${
+                      selectedContact?.id === contact.id ? 'bg-gray-50' : ''
+                    }`}
+                    onClick={() => setSelectedContact(contact)}
+                  >
+                    <div className="flex items-center px-4 py-4 sm:px-6">
+                      <div className="flex min-w-0 flex-1 items-center">
+                        <div className="flex-shrink-0">
+                          {contact.avatar_url ? (
+                            <img
+                              className="h-12 w-12 rounded-full"
+                              src={contact.avatar_url}
+                              alt={contact.full_name}
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                              {contact.role === 'brand' ? (
+                                <Building2 className="h-6 w-6 text-gray-400" />
+                              ) : (
+                                <Users className="h-6 w-6 text-gray-400" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 px-4">
+                          <p className="truncate text-sm font-medium text-gray-900">
+                            {contact.full_name}
+                          </p>
+                          <p className="truncate text-sm text-gray-500">
+                            {contact.role}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="p-4 text-center text-sm text-gray-500">
+                <p>No conversations yet</p>
+                <p className="mt-1">Click the "+" icon above to start a new conversation</p>
+                <p className="mt-2">Or apply to campaigns to get in touch with brands</p>
+              </div>
+            )}
           </nav>
         </div>
 
@@ -262,27 +428,34 @@ export default function Messages() {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
+                  {messages.length > 0 ? (
+                    messages.map((message) => (
                       <div
-                        className={`rounded-lg px-4 py-2 ${
-                          message.sender_id === user?.id
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
+                        key={message.id}
+                        className={`flex ${
+                          message.sender_id === user?.id ? 'justify-end' : 'justify-start'
                         }`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p className="mt-1 text-xs opacity-75">
-                          {new Date(message.created_at).toLocaleTimeString()}
-                        </p>
+                        <div
+                          className={`rounded-lg px-4 py-2 ${
+                            message.sender_id === user?.id
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-gray-100 text-gray-900'
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <p className="mt-1 text-xs opacity-75">
+                            {new Date(message.created_at).toLocaleTimeString()}
+                          </p>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-6">
+                      <p>No messages yet.</p>
+                      <p className="mt-1">Be the first to send a message!</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -299,7 +472,7 @@ export default function Messages() {
                   <button
                     type="submit"
                     disabled={!newMessage.trim()}
-                    className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="h-4 w-4" />
                   </button>
@@ -308,7 +481,20 @@ export default function Messages() {
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center">
-              <p className="text-gray-500">Select a contact to start messaging</p>
+              <div className="text-center px-6 py-10">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900">Your Messages</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Select a contact to start messaging or create a new conversation.
+                </p>
+                <button
+                  onClick={() => setShowNewMessageForm(true)}
+                  className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  New Conversation
+                </button>
+              </div>
             </div>
           )}
         </div>

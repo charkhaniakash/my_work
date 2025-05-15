@@ -11,6 +11,8 @@ export default authMiddleware({
     "/",
     "/auth/sign-in",
     "/auth/sign-up",
+    "/auth/sign-up/verify-email-address",
+    "/auth/role-selection",
     "/api/webhook/clerk"
   ],
   // Ensure the webhook endpoint is available even when not signed in

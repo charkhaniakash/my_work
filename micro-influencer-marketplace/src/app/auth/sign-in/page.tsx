@@ -8,7 +8,7 @@ export default function SignInPage() {
         path="/auth/sign-in"
         routing="path"
         signUpUrl="/auth/sign-up"
-        afterSignInUrl="/dashboard"
+        redirectUrl="/dashboard"
         appearance={{
           elements: {
             rootBox: "mx-auto w-full max-w-md",

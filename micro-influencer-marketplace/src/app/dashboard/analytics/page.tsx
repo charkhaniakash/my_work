@@ -63,14 +63,30 @@ export default function Analytics() {
           .select('*')
           .eq('brand_id', user.id)
 
+        if (campaignsError) {
+          toast.error('Failed to load campaign data')
+          console.error('Campaigns error:', campaignsError)
+          setLoading(false)
+          return
+        }
+
+        // For brand users, fetch applications related to their campaigns
         const { data: applications, error: applicationsError } = await supabase
           .from('campaign_applications')
-          .select('*, campaign:campaigns(*)')
-          .eq('campaign.brand_id', user.id)
+          .select('*, campaigns!inner(*)')
+          .eq('campaigns.brand_id', user.id)
 
-        if (campaignsError || applicationsError) throw campaignsError || applicationsError
+        if (applicationsError) {
+          toast.error('Failed to load application data')
+          console.error('Applications error:', applicationsError)
+          // Still calculate analytics with campaign data even if application data fails
+          const partialAnalytics = calculateAnalytics(campaigns || [], [])
+          setAnalytics(partialAnalytics)
+          setLoading(false)
+          return
+        }
 
-        // Calculate analytics
+        // Calculate analytics with both campaign and application data
         const analytics = calculateAnalytics(campaigns || [], applications || [])
         setAnalytics(analytics)
       } else {
@@ -80,13 +96,18 @@ export default function Analytics() {
           .select('*, campaign:campaigns(*)')
           .eq('influencer_id', user.id)
 
-        if (applicationsError) throw applicationsError
+        if (applicationsError) {
+          toast.error('Failed to load application data')
+          console.error('Applications error:', applicationsError)
+          setLoading(false)
+          return
+        }
 
+        // Extract campaigns from applications
+        const campaigns = applications?.map(app => app.campaign).filter(Boolean) || []
+        
         // Calculate analytics
-        const analytics = calculateAnalytics(
-          applications?.map(app => app.campaign) || [],
-          applications || []
-        )
+        const analytics = calculateAnalytics(campaigns, applications || [])
         setAnalytics(analytics)
       }
     } catch (error) {
@@ -98,35 +119,54 @@ export default function Analytics() {
   }
 
   const calculateAnalytics = (campaigns: Campaign[], applications: CampaignApplication[]) => {
-    const campaignsByStatus = campaigns.reduce((acc, campaign) => {
-      acc[campaign.status] = (acc[campaign.status] || 0) + 1
+    // Create a safe copy of campaigns to prevent errors
+    const safeCampaigns = Array.isArray(campaigns) ? campaigns : []
+    const safeApplications = Array.isArray(applications) ? applications : []
+    
+    // Group campaigns by status
+    const campaignsByStatus = safeCampaigns.reduce((acc, campaign) => {
+      const status = campaign?.status || 'unknown'
+      acc[status] = (acc[status] || 0) + 1
       return acc
     }, {} as Record<string, number>)
 
-    const applicationsByMonth = applications.reduce((acc, app) => {
+    // Group applications by month
+    const applicationsByMonth = safeApplications.reduce((acc, app) => {
+      if (!app?.created_at) return acc
+      
       const month = new Date(app.created_at).toLocaleString('default', { month: 'long' })
       acc[month] = (acc[month] || 0) + 1
       return acc
     }, {} as Record<string, number>)
 
+    // Calculate totals with safety checks
     return {
-      totalCampaigns: campaigns.length,
-      activeCampaigns: campaigns.filter(c => c.status === 'active').length,
-      totalApplications: applications.length,
-      acceptedApplications: applications.filter(a => a.status === 'accepted').length,
-      pendingApplications: applications.filter(a => a.status === 'pending').length,
-      rejectedApplications: applications.filter(a => a.status === 'rejected').length,
-      totalBudget: campaigns.reduce((sum, campaign) => sum + (campaign.budget || 0), 0),
-      averageRate: applications.length
-        ? applications.reduce((sum, app) => sum + (app.proposed_rate || 0), 0) / applications.length
+      totalCampaigns: safeCampaigns.length,
+      activeCampaigns: safeCampaigns.filter(c => c?.status === 'active').length,
+      totalApplications: safeApplications.length,
+      acceptedApplications: safeApplications.filter(a => a?.status === 'accepted').length,
+      pendingApplications: safeApplications.filter(a => a?.status === 'pending').length,
+      rejectedApplications: safeApplications.filter(a => a?.status === 'rejected').length,
+      totalBudget: safeCampaigns.reduce((sum, campaign) => sum + (campaign?.budget || 0), 0),
+      averageRate: safeApplications.length
+        ? safeApplications.reduce((sum, app) => sum + (app?.proposed_rate || 0), 0) / safeApplications.length
         : 0,
       campaignsByStatus,
       applicationsByMonth
     }
   }
 
-  if (!isLoaded || loading) {
-    return <div>Loading...</div>
+  if (!isLoaded) {
+    return <div className="flex justify-center items-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+    </div>
+  }
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <span className="ml-2">Loading analytics data...</span>
+    </div>
   }
 
   return (
@@ -272,24 +312,28 @@ export default function Analytics() {
               Campaign Status Distribution
             </h3>
             <div className="mt-5">
-              {Object.entries(analytics.campaignsByStatus).map(([status, count]) => (
-                <div key={status} className="mt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium text-gray-600">
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+              {Object.entries(analytics.campaignsByStatus).length > 0 ? (
+                Object.entries(analytics.campaignsByStatus).map(([status, count]) => (
+                  <div key={status} className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium text-gray-600">
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </div>
+                      <div className="text-sm font-medium text-gray-900">{count}</div>
                     </div>
-                    <div className="text-sm font-medium text-gray-900">{count}</div>
+                    <div className="mt-2 overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className="h-2 rounded-full bg-indigo-600"
+                        style={{
+                          width: analytics.totalCampaigns ? `${(count / analytics.totalCampaigns) * 100}%` : '0%',
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-2 overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-2 rounded-full bg-indigo-600"
-                      style={{
-                        width: `${(count / analytics.totalCampaigns) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-sm text-gray-500 py-4">No campaign data available</div>
+              )}
             </div>
           </div>
         </div>
@@ -301,25 +345,43 @@ export default function Analytics() {
               Applications by Month
             </h3>
             <div className="mt-5">
-              {Object.entries(analytics.applicationsByMonth).map(([month, count]) => (
-                <div key={month} className="mt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium text-gray-600">{month}</div>
-                    <div className="text-sm font-medium text-gray-900">{count}</div>
+              {Object.entries(analytics.applicationsByMonth).length > 0 ? (
+                Object.entries(analytics.applicationsByMonth).map(([month, count]) => (
+                  <div key={month} className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium text-gray-600">{month}</div>
+                      <div className="text-sm font-medium text-gray-900">{count}</div>
+                    </div>
+                    <div className="mt-2 overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className="h-2 rounded-full bg-indigo-600"
+                        style={{
+                          width: analytics.totalApplications ? `${(count / analytics.totalApplications) * 100}%` : '0%',
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-2 overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-2 rounded-full bg-indigo-600"
-                      style={{
-                        width: `${(count / analytics.totalApplications) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-sm text-gray-500 py-4">No application data available</div>
+              )}
             </div>
           </div>
         </div>
+      </div>
+      
+      {/* Refresh Button */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            loadAnalytics();
+          }}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Refresh Data
+        </button>
       </div>
     </div>
   )

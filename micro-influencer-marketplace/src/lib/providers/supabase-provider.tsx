@@ -1,9 +1,8 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useRouter } from 'next/navigation'
-import type { SupabaseClient } from '@supabase/auth-helpers-nextjs'
+import { createContext, useContext, useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/types/database'
 
 type SupabaseContext = {
@@ -12,26 +11,23 @@ type SupabaseContext = {
 
 const Context = createContext<SupabaseContext | undefined>(undefined)
 
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables')
+}
+
 export default function SupabaseProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [supabase] = useState(() => createClientComponentClient<Database>())
-  const router = useRouter()
-
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      router.refresh()
-    })
-    console.log("supabase", supabase)
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [supabase, router])
+  const [supabase] = useState(() => createClient<Database>(
+    supabaseUrl as string,
+    supabaseAnonKey as string
+  ))
 
   return (
     <Context.Provider value={{ supabase }}>
