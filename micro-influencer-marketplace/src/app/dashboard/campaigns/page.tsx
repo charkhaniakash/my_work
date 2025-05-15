@@ -38,10 +38,10 @@ export default function Campaigns() {
     budget: 0,
     start_date: '',
     end_date: '',
-    requirements: [],
+    requirements: '',
     target_niche: [],
     target_location: '',
-    status: 'draft'
+    status: 'active' as 'active' | 'paused' | 'completed'
   })
 
   useEffect(() => {
@@ -98,9 +98,9 @@ export default function Campaigns() {
         ...formData as Omit<Campaign, 'id' | 'created_at' | 'updated_at'>,
         brand_id: user.id,
         budget: Number(formData.budget),
-        requirements: requirements,
+        requirements: formData.requirements || '',
         target_niche: formData.target_niche || [],
-        status: 'draft'
+        status: 'active' as 'active' | 'paused' | 'completed'
       })
 
       if (campaign) {
@@ -112,10 +112,10 @@ export default function Campaigns() {
           budget: 0,
           start_date: '',
           end_date: '',
-          requirements: [],
+          requirements: '',
           target_niche: [],
           target_location: '',
-          status: 'draft'
+          status: 'active' as 'active' | 'paused' | 'completed'
         })
         setShowCreateModal(false)
       }

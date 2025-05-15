@@ -56,18 +56,19 @@ export interface InfluencerProfile {
 
 export interface Campaign {
   id: string
+  brand_id: string
   title: string
   description: string
   budget: number
   start_date: string
   end_date: string
-  status: 'draft' | 'active' | 'completed' | 'cancelled'
   target_location?: string
   target_niche: string[]
-  requirements: string[]
-  brand_id: string
+  requirements: string
+  deliverables: string
+  status: 'active' | 'paused' | 'completed'
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface CampaignApplication {
@@ -78,7 +79,7 @@ export interface CampaignApplication {
   pitch: string
   proposed_rate: number
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface MessageAttachment {
