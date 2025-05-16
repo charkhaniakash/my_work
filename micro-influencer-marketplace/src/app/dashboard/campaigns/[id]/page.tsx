@@ -82,7 +82,10 @@ export default function CampaignDetail() {
     try {
       const { data, error } = await supabase
         .from('campaign_applications')
-        .select('*, influencer:users(*)')
+        .select(`
+          *,
+          influencer:users!campaign_applications_influencer_id_fkey(*)
+        `)
         .eq('campaign_id', params.id)
         .order('created_at', { ascending: false })
 
