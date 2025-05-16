@@ -9,6 +9,7 @@ export interface User {
   full_name: string
   role: UserRole
   avatar_url?: string
+  profile_image?: string
   username?: string
   bio?: string
   location?: string
@@ -17,6 +18,26 @@ export interface User {
   updated_at: string
   last_login: string | null
   is_verified: boolean
+  influencer_profile?: {
+    id: string
+    user_id: string
+    bio: string | null
+    niche: string[]
+    location: string | null
+    pricing_tier: PricingTier
+    min_rate: number
+    max_rate: number
+    languages: string[]
+    social_links: {
+      instagram?: string
+      tiktok?: string
+      youtube?: string
+      twitter?: string
+      linkedin?: string
+    }
+    created_at: string
+    updated_at: string
+  }
 }
 
 export interface BrandProfile {
@@ -66,9 +87,10 @@ export interface Campaign {
   target_niche: string[]
   requirements: string
   deliverables: string
-  status: 'active' | 'paused' | 'completed'
+  status: 'scheduled' | 'active' | 'paused' | 'completed'
   created_at: string
   updated_at?: string
+  notes?: string
 }
 
 export interface CampaignApplication {
@@ -128,6 +150,20 @@ export interface Conversation {
   campaign?: Campaign
   last_message?: Message
 }
+
+export type CampaignTemplate = {
+  id: string;
+  brand_id: string;
+  title: string;
+  description: string;
+  budget: number;
+  target_location?: string;
+  target_niche: string[];
+  requirements?: string;
+  deliverables?: string;
+  created_at: string;
+  updated_at: string;
+};
 
 export interface Database {
   public: {

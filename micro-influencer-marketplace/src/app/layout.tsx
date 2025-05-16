@@ -6,6 +6,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import React from 'react'
 import { AuthProvider } from '@/lib/auth-context'
 import SupabaseProvider from '@/lib/providers/supabase-provider'
+import RoleRedirectWrapper from './components/RoleRedirectWrapper'
 // import MessageNotification from '@/components/MessageNotification'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -26,11 +27,13 @@ export default function RootLayout({
         <ClerkProvider>
           <SupabaseProvider>
             <AuthProvider>
-              <main className="min-h-screen bg-background">
-        {children}
-              </main>
-              <Toaster />
-              {/* <MessageNotification /> */}
+              <RoleRedirectWrapper>
+                <main className="min-h-screen bg-background">
+                  {children}
+                </main>
+                <Toaster />
+                {/* <MessageNotification /> */}
+              </RoleRedirectWrapper>
             </AuthProvider>
           </SupabaseProvider>
         </ClerkProvider>

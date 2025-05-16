@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FileText, Plus, Calendar, DollarSign, Users, ChevronRight, X } from 'lucide-react'
+import { FileText, Plus, Calendar, DollarSign, Users, ChevronRight, X, Clock } from 'lucide-react'
 import { useCampaigns } from '@/lib/hooks/useCampaigns'
 import { Campaign } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
@@ -30,6 +30,8 @@ export default function Campaigns() {
     getCampaigns,
   } = useCampaigns()
 
+
+  console.log("user", user)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [formData, setFormData] = useState<Partial<Campaign>>({
@@ -167,15 +169,31 @@ export default function Campaigns() {
                     </p>
                   </div>
                   <div className="ml-2 flex flex-shrink-0">
-                    <p
-                      className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                        campaign.status === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {campaign.status}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      {campaign.status === 'scheduled' ? (
+                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                          <Clock className="mr-1 h-4 w-4" />
+                          Scheduled
+                        </span>
+                      ) : campaign.status === 'active' ? (
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                          Active
+                        </span>
+                      ) : campaign.status === 'paused' ? (
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                          Paused
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                          Completed
+                        </span>
+                      )}
+                      {campaign.status === 'scheduled' && (
+                        <span className="text-sm text-gray-500">
+                          Starts {new Date(campaign.start_date).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-2 sm:flex sm:justify-between">

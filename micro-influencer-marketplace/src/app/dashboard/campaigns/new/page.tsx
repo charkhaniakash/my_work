@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
+import { CampaignTemplate } from '@/lib/types/database'
 
 const NICHE_OPTIONS = [
   'Fashion',
@@ -35,8 +36,32 @@ export default function NewCampaign() {
     target_niche: [] as string[],
     requirements: '',
     deliverables: '',
-    status: 'active' as 'active' | 'paused' | 'completed'
+    status: 'active' as 'scheduled' | 'active' | 'paused' | 'completed'
   })
+  const [templates, setTemplates] = useState<CampaignTemplate[]>([])
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('campaign_templates')
+          .select('*')
+          .eq('brand_id', user?.id as string)
+        if (error) throw error
+        setTemplates(data || [])
+      } catch (error) {
+        console.error('Error loading templates:', error)
+        toast.error('Failed to load templates')
+      }
+    }
+    loadTemplates()
+  }, [user?.id])
+
+  const determineCampaignStatus = (startDate: string) => {
+    const now = new Date()
+    const start = new Date(startDate)
+    return start > now ? 'scheduled' : 'active'
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,10 +69,13 @@ export default function NewCampaign() {
 
     try {
       setSaving(true)
+      const campaignStatus = determineCampaignStatus(formData.start_date)
+      
       const { data, error } = await supabase
         .from('campaigns')
         .insert({
           ...formData,
+          status: campaignStatus,
           brand_id: user.id,
           created_at: new Date().toISOString()
         })
@@ -56,7 +84,7 @@ export default function NewCampaign() {
 
       if (error) throw error
 
-      toast.success('Campaign created successfully')
+      toast.success(`Campaign ${campaignStatus === 'scheduled' ? 'scheduled' : 'created'} successfully`)
       router.push(`/dashboard/campaigns/${data.id}`)
     } catch (error) {
       console.error('Error creating campaign:', error)
@@ -75,6 +103,21 @@ export default function NewCampaign() {
     }))
   }
 
+  const handleTemplateSelect = (template: CampaignTemplate) => {
+    setFormData({
+      title: template.title,
+      description: template.description,
+      budget: template.budget,
+      target_location: template.target_location || '',
+      target_niche: template.target_niche,
+      requirements: template.requirements || '',
+      deliverables: template.deliverables || '',
+      start_date: '',
+      end_date: '',
+      status: 'active'
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -85,6 +128,20 @@ export default function NewCampaign() {
           Create a new influencer marketing campaign
         </p>
       </div>
+
+      {templates.length > 0 && (
+        <div className="bg-white shadow sm:rounded-lg p-4">
+          <h2 className="text-lg font-medium mb-4">Use a Template</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {templates.map((template) => (
+              <div key={template.id} className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onClick={() => handleTemplateSelect(template)}>
+                <h3 className="font-medium">{template.title}</h3>
+                <p className="text-sm text-gray-500">{template.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-6">
@@ -154,11 +211,24 @@ export default function NewCampaign() {
                   type="date"
                   id="start_date"
                   required
+                  min={new Date().toISOString().split('T')[0]}
                   value={formData.start_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                  onChange={(e) => {
+                    const newStartDate = e.target.value
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      start_date: newStartDate,
+                      status: determineCampaignStatus(newStartDate)
+                    }))
+                  }}
                   className="block w-full pl-10 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
               </div>
+              {formData.start_date && new Date(formData.start_date) > new Date() && (
+                <p className="mt-1 text-sm text-indigo-600">
+                  Campaign will be scheduled to start on {new Date(formData.start_date).toLocaleDateString()}
+                </p>
+              )}
             </div>
             <div>
               <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">

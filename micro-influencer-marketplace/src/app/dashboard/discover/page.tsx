@@ -5,7 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useUser } from '@clerk/nextjs'
 import { User } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
-import { Search, Filter, Users, Building2, MapPin } from 'lucide-react'
+import { Search, Filter, Users, Building2, MapPin, Tag } from 'lucide-react'
 
 export default function Discover() {
   const { user, isLoaded } = useUser()
@@ -29,17 +29,22 @@ export default function Discover() {
   const loadProfiles = async () => {
     try {
       setLoading(true)
-      let query = supabase.from('users').select('*')
+      let query = supabase
+        .from('users')
+        .select(`
+          *,
+          influencer_profile:influencer_profiles(*)
+        `)
 
       // Apply filters
       if (filters.role !== 'all') {
         query = query.eq('role', filters.role)
       }
       if (filters.niche !== 'all') {
-        query = query.contains('niches', [filters.niche])
+        query = query.contains('influencer_profile.niche', [filters.niche])
       }
       if (filters.location) {
-        query = query.ilike('location', `%${filters.location}%`)
+        query = query.ilike('influencer_profile.location', `%${filters.location}%`)
       }
 
       const { data, error } = await query
@@ -145,9 +150,9 @@ export default function Discover() {
             >
               <div className="p-6">
                 <div className="flex items-center">
-                  {profile.avatar_url ? (
+                  {profile.profile_image ? (
                     <img
-                      src={profile.avatar_url}
+                      src={profile.profile_image}
                       alt={profile.username || ''}
                       className="h-12 w-12 rounded-full"
                     />
@@ -172,17 +177,17 @@ export default function Discover() {
                   <p className="mt-4 text-sm text-gray-500 line-clamp-3">{profile.bio}</p>
                 )}
 
-                {profile.location && (
+                {profile.influencer_profile?.location && (
                   <div className="mt-4 flex items-center text-sm text-gray-500">
                     <MapPin className="mr-1.5 h-4 w-4 flex-shrink-0 text-gray-400" />
-                    {profile.location}
+                    {profile.influencer_profile.location}
                   </div>
                 )}
 
-                {profile.niches && (
+                {profile.influencer_profile?.niche && (
                   <div className="mt-4">
                     <div className="flex flex-wrap gap-2">
-                      {profile.niches.map((niche) => (
+                      {profile.influencer_profile.niche.map((niche) => (
                         <span
                           key={niche}
                           className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700"

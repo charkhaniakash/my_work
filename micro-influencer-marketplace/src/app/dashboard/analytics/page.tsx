@@ -73,8 +73,8 @@ export default function Analytics() {
         // For brand users, fetch applications related to their campaigns
         const { data: applications, error: applicationsError } = await supabase
           .from('campaign_applications')
-          .select('*, campaigns!inner(*)')
-          .eq('campaigns.brand_id', user.id)
+          .select('*')
+          .in('campaign_id', campaigns?.map(c => c.id) || [])
 
         if (applicationsError) {
           toast.error('Failed to load application data')
@@ -147,9 +147,9 @@ export default function Analytics() {
       acceptedApplications: safeApplications.filter(a => a?.status === 'accepted').length,
       pendingApplications: safeApplications.filter(a => a?.status === 'pending').length,
       rejectedApplications: safeApplications.filter(a => a?.status === 'rejected').length,
-      totalBudget: safeCampaigns.reduce((sum, campaign) => sum + (campaign?.budget || 0), 0),
+      totalBudget: safeCampaigns.reduce((sum, campaign) => sum + (Number(campaign?.budget) || 0), 0),
       averageRate: safeApplications.length
-        ? safeApplications.reduce((sum, app) => sum + (app?.proposed_rate || 0), 0) / safeApplications.length
+        ? safeApplications.reduce((sum, app) => sum + (Number(app?.proposed_rate) || 0), 0) / safeApplications.length
         : 0,
       campaignsByStatus,
       applicationsByMonth
@@ -239,7 +239,7 @@ export default function Analytics() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total Budget</dt>
-                  <dd className="text-lg font-medium text-gray-900">${analytics.totalBudget}</dd>
+                  <dd className="text-lg font-medium text-gray-900">${analytics.totalBudget.toLocaleString()}</dd>
                 </dl>
               </div>
             </div>
@@ -248,140 +248,84 @@ export default function Analytics() {
       </div>
 
       {/* Applications Status */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircle className="h-6 w-6 text-green-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Accepted Applications</dt>
+                  <dd className="text-lg font-medium text-gray-900">{analytics.acceptedApplications}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Clock className="h-6 w-6 text-yellow-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Pending Applications</dt>
+                  <dd className="text-lg font-medium text-gray-900">{analytics.pendingApplications}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <XCircle className="h-6 w-6 text-red-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Rejected Applications</dt>
+                  <dd className="text-lg font-medium text-gray-900">{analytics.rejectedApplications}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Campaign Status Distribution */}
       <div className="overflow-hidden rounded-lg bg-white shadow">
-        <div className="p-6">
-          <h3 className="text-lg font-medium leading-6 text-gray-900">Applications Status</h3>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="overflow-hidden rounded-lg bg-green-50 px-4 py-5 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CheckCircle className="h-6 w-6 text-green-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-green-500 truncate">Accepted</dt>
-                    <dd className="text-lg font-medium text-green-900">
-                      {analytics.acceptedApplications}
-                    </dd>
-                  </dl>
-                </div>
+        <div className="p-5">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">Campaign Status Distribution</h3>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {Object.entries(analytics.campaignsByStatus).map(([status, count]) => (
+              <div key={status} className="rounded-lg bg-gray-50 p-4">
+                <dt className="text-sm font-medium text-gray-500 capitalize">{status}</dt>
+                <dd className="mt-1 text-lg font-semibold text-gray-900">{count}</dd>
               </div>
-            </div>
-
-            <div className="overflow-hidden rounded-lg bg-yellow-50 px-4 py-5 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Clock className="h-6 w-6 text-yellow-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-yellow-500 truncate">Pending</dt>
-                    <dd className="text-lg font-medium text-yellow-900">
-                      {analytics.pendingApplications}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-hidden rounded-lg bg-red-50 px-4 py-5 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <XCircle className="h-6 w-6 text-red-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-red-500 truncate">Rejected</dt>
-                    <dd className="text-lg font-medium text-red-900">
-                      {analytics.rejectedApplications}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-6 sm:grid-cols-2">
-        {/* Campaign Status Distribution */}
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="p-6">
-            <h3 className="text-lg font-medium leading-6 text-gray-900">
-              Campaign Status Distribution
-            </h3>
-            <div className="mt-5">
-              {Object.entries(analytics.campaignsByStatus).length > 0 ? (
-                Object.entries(analytics.campaignsByStatus).map(([status, count]) => (
-                  <div key={status} className="mt-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium text-gray-600">
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </div>
-                      <div className="text-sm font-medium text-gray-900">{count}</div>
-                    </div>
-                    <div className="mt-2 overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-2 rounded-full bg-indigo-600"
-                        style={{
-                          width: analytics.totalCampaigns ? `${(count / analytics.totalCampaigns) * 100}%` : '0%',
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-500 py-4">No campaign data available</div>
-              )}
-            </div>
+      {/* Applications by Month */}
+      <div className="overflow-hidden rounded-lg bg-white shadow">
+        <div className="p-5">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">Applications by Month</h3>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {Object.entries(analytics.applicationsByMonth).map(([month, count]) => (
+              <div key={month} className="rounded-lg bg-gray-50 p-4">
+                <dt className="text-sm font-medium text-gray-500">{month}</dt>
+                <dd className="mt-1 text-lg font-semibold text-gray-900">{count}</dd>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Applications by Month */}
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="p-6">
-            <h3 className="text-lg font-medium leading-6 text-gray-900">
-              Applications by Month
-            </h3>
-            <div className="mt-5">
-              {Object.entries(analytics.applicationsByMonth).length > 0 ? (
-                Object.entries(analytics.applicationsByMonth).map(([month, count]) => (
-                  <div key={month} className="mt-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium text-gray-600">{month}</div>
-                      <div className="text-sm font-medium text-gray-900">{count}</div>
-                    </div>
-                    <div className="mt-2 overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-2 rounded-full bg-indigo-600"
-                        style={{
-                          width: analytics.totalApplications ? `${(count / analytics.totalApplications) * 100}%` : '0%',
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-500 py-4">No application data available</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Refresh Button */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            setLoading(true);
-            loadAnalytics();
-          }}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          Refresh Data
-        </button>
       </div>
     </div>
   )
