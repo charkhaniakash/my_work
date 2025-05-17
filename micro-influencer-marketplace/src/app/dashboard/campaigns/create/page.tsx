@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
@@ -22,7 +21,6 @@ const NICHE_OPTIONS = [
 
 export default function CreateCampaign() {
   const router = useRouter()
-  const { user } = useUser()
   const supabase = createClientComponentClient()
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -40,7 +38,6 @@ export default function CreateCampaign() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user) return
 
     try {
       setSaving(true)
@@ -48,7 +45,6 @@ export default function CreateCampaign() {
         .from('campaigns')
         .insert({
           ...formData,
-          brand_id: user.id,
           created_at: new Date().toISOString()
         })
         .select()

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Campaign, CampaignApplication } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
@@ -17,13 +16,13 @@ import {
   Clock
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 type ApplicationWithInfluencer = CampaignApplication & { influencer: { full_name: string } }
 
 export default function CampaignDetail() {
   const params = useParams()
   const router = useRouter()
-  const { user } = useUser()
   const supabase = createClientComponentClient()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [applications, setApplications] = useState<ApplicationWithInfluencer[]>([])
@@ -37,6 +36,7 @@ export default function CampaignDetail() {
   const [pitch, setPitch] = useState('')
   const [proposedRate, setProposedRate] = useState('')
   const [hasApplied, setHasApplied] = useState(false)
+  const { user, isLoading: userLoading } = useSupabase()
 
   useEffect(() => {
     if (params.id) {
@@ -50,17 +50,17 @@ export default function CampaignDetail() {
 
   // Check if influencer has already applied
   useEffect(() => {
-    if (user?.publicMetadata?.role === 'influencer' && user.id && params.id) {
+    if (params.id) {
       supabase
         .from('campaign_applications')
         .select('id')
         .eq('campaign_id', params.id)
-        .eq('influencer_id', user.id)
+        .eq('influencer_id', user?.id)
         .then(({ data }) => {
           setHasApplied(!!(data && data.length > 0))
         })
     }
-  }, [user, params.id])
+  }, [params.id])
 
   const loadCampaign = async () => {
     try {
@@ -391,7 +391,7 @@ export default function CampaignDetail() {
         </div>
       </div>
 
-      {user?.publicMetadata?.role === 'influencer' && (
+      {user?.user_metadata?.role === 'influencer' && (
         <div className="bg-white shadow sm:rounded-lg p-6 my-6">
           <h3 className="text-lg font-semibold mb-2">Apply to this Campaign</h3>
           {hasApplied ? (

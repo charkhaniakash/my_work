@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useUser } from '@clerk/nextjs'
 import { 
   Users,
   MessageSquare,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react'
 import { Campaign, CampaignApplication } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 interface Activity {
   id: string
@@ -22,8 +22,8 @@ interface Activity {
 }
 
 export default function Dashboard() {
-  const { user, isLoaded } = useUser()
   const supabase = createClientComponentClient()
+  const { user, isLoading: userLoading } = useSupabase()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     activeCampaigns: 0,
@@ -34,13 +34,14 @@ export default function Dashboard() {
   const [activities, setActivities] = useState<Activity[]>([])
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!userLoading && user) {
       loadDashboardStats()
       loadRecentActivity()
     }
-  }, [isLoaded, user])
+  }, [userLoading, user])
 
   const loadRecentActivity = async () => {
+    if (!user) return
     try {
       const activities: Activity[] = []
 
@@ -48,9 +49,8 @@ export default function Dashboard() {
       const { data: campaigns, error: campaignsError } = await supabase
         .from('campaigns')
         .select('*')
-        .eq(user?.publicMetadata.role === 'brand' ? 'brand_id' : 'status', user?.id || 'active')
-        .order('created_at', { ascending: false })
-        .limit(3)
+        .eq('status', 'active')
+        .eq('brand_id', user.id)
 
       if (campaignsError) throw campaignsError
 
@@ -58,9 +58,7 @@ export default function Dashboard() {
       const { data: applications, error: applicationsError } = await supabase
         .from('campaign_applications')
         .select('*, campaign:campaigns(*)')
-        .eq(user?.publicMetadata.role === 'brand' ? 'brand_id' : 'influencer_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(3)
+        .eq(user.user_metadata?.role === 'brand' ? 'brand_id' : 'influencer_id', user.id)
 
       if (applicationsError) throw applicationsError
 
@@ -68,7 +66,7 @@ export default function Dashboard() {
       campaigns?.forEach(campaign => {
         activities.push({
           id: `campaign-${campaign.id}`,
-          title: user?.publicMetadata.role === 'brand' 
+          title: user.user_metadata?.role === 'brand' 
             ? `Campaign "${campaign.title}" ${campaign.status}`
             : `New campaign available: ${campaign.title}`,
           description: campaign.description,
@@ -81,7 +79,7 @@ export default function Dashboard() {
       applications?.forEach(application => {
         activities.push({
           id: `application-${application.id}`,
-          title: user?.publicMetadata.role === 'brand'
+          title: user.user_metadata?.role === 'brand'
             ? `New application received for "${application.campaign.title}"`
             : `Your application for "${application.campaign.title}" is ${application.status}`,
           description: application.pitch || 'No pitch provided',
@@ -103,6 +101,7 @@ export default function Dashboard() {
   }
 
   const loadDashboardStats = async () => {
+    if (!user) return
     try {
       setLoading(true)
 
@@ -111,7 +110,7 @@ export default function Dashboard() {
         .from('campaigns')
         .select('*')
         .eq('status', 'active')
-        .eq('brand_id', user?.id)
+        .eq('brand_id', user.id)
 
       if (campaignsError) throw campaignsError
 
@@ -119,7 +118,7 @@ export default function Dashboard() {
       const { data: applications, error: applicationsError } = await supabase
         .from('campaign_applications')
         .select('*')
-        .eq(user?.publicMetadata.role === 'brand' ? 'brand_id' : 'influencer_id', user?.id)
+        .eq(user.user_metadata?.role === 'brand' ? 'brand_id' : 'influencer_id', user.id)
 
       if (applicationsError) throw applicationsError
 
@@ -127,7 +126,7 @@ export default function Dashboard() {
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
         .select('*')
-        .or(`sender_id.eq.${user?.id},receiver_id.eq.${user?.id}`)
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
 
       if (messagesError) throw messagesError
 
@@ -151,7 +150,7 @@ export default function Dashboard() {
     }
   }
 
-  if (!isLoaded || loading) {
+  if (userLoading || loading || !user) {
     return <div>Loading...</div>
   }
 

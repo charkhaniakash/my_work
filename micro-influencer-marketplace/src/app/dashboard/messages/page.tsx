@@ -3,11 +3,28 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useUser } from '@clerk/nextjs'
-import { User, Conversation } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
 import { Send, Users, Building2, UserPlus, Plus, Search } from 'lucide-react'
 import NewConversation from '@/components/NewConversation'
+import { useSupabase } from '@/lib/providers/supabase-provider'
+
+interface User {
+  id: string
+  email: string
+  full_name: string
+  avatar_url?: string
+  role?: string
+  user_metadata?: {
+    role?: string
+  }
+}
+
+interface Conversation {
+  id: string
+  created_at: string
+  updated_at: string
+  participants: string[]
+}
 
 interface Message {
   id: string
@@ -18,9 +35,9 @@ interface Message {
 }
 
 export default function Messages() {
-  const { user, isLoaded } = useUser()
   const searchParams = useSearchParams()
   const supabase = createClientComponentClient()
+  const { user, isLoading: userLoading } = useSupabase()
   
   const [contacts, setContacts] = useState<User[]>([])
   const [selectedContact, setSelectedContact] = useState<User | null>(null)
@@ -37,14 +54,10 @@ export default function Messages() {
 
   console.log("contacts" , contacts)
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!userLoading && user) {
       loadContacts()
-      // const contactId = searchParams.get('contact')
-      // if (contactId) {
-      //   loadContact(contactId)
-      // }
     }
-  }, [isLoaded, user])
+  }, [userLoading, user])
 
   useEffect(() => {
     if (selectedContact) {
@@ -57,26 +70,27 @@ export default function Messages() {
   }, [selectedContact])
 
   useEffect(() => {
-    if (showNewMessageForm && user) {
+    if (showNewMessageForm) {
       loadAllUsers()
     }
   }, [showNewMessageForm])
 
   const loadContacts = async () => {
-      try {
+    if (!user) return
+    try {
       // Get all users who have exchanged messages with the current user
       const { data: messageUsers, error: messageError } = await supabase
-          .from('messages')
+        .from('messages')
         .select('sender_id, receiver_id')
-        .or(`sender_id.eq.${user?.id},receiver_id.eq.${user?.id}`)
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
 
         if (messageError) throw messageError
 
       // Get unique user IDs from messages
       const userIds = new Set<string>()
       messageUsers?.forEach(msg => {
-        if (msg.sender_id !== user?.id) userIds.add(msg.sender_id)
-        if (msg.receiver_id !== user?.id) userIds.add(msg.receiver_id)
+        if (msg.sender_id !== user.id) userIds.add(msg.sender_id)
+        if (msg.receiver_id !== user.id) userIds.add(msg.receiver_id)
       })
 
       // Fetch user details for all contacts
@@ -91,13 +105,13 @@ export default function Messages() {
         if (usersError) throw usersError
         setContacts(users || [])
       // }
-      } catch (error) {
+    } catch (error) {
       console.error('Error loading contacts:', error)
       toast.error('Failed to load contacts')
-      } finally {
+    } finally {
       setLoading(false)
-      }
     }
+  }
 
   const loadContact = async (contactId: string) => {
     try {
@@ -121,14 +135,14 @@ export default function Messages() {
   }
 
   const loadMessages = async () => {
-    if (!selectedContact) return
+    if (!selectedContact || !user) return
 
     try {
       setLoading(true)
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .or(`and(sender_id.eq.${user?.id},receiver_id.eq.${selectedContact.id}),and(sender_id.eq.${selectedContact.id},receiver_id.eq.${user?.id})`)
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedContact.id}),and(sender_id.eq.${selectedContact.id},receiver_id.eq.${user.id})`)
         .order('created_at', { ascending: true })
 
       if (error) throw error
@@ -143,13 +157,13 @@ export default function Messages() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedContact || !newMessage.trim()) return
+    if (!selectedContact || !newMessage.trim() || !user) return
 
     try {
       const { error } = await supabase
         .from('messages')
         .insert({
-          sender_id: user?.id,
+          sender_id: user.id,
           receiver_id: selectedContact.id,
           content: newMessage.trim()
       })
@@ -163,7 +177,7 @@ export default function Messages() {
   }
 
   const subscribeToMessages = () => {
-    if (!selectedContact) return () => {}
+    if (!selectedContact || !user) return () => {}
 
     const channel = supabase
       .channel('messages')
@@ -173,7 +187,7 @@ export default function Messages() {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `sender_id=eq.${selectedContact.id},receiver_id=eq.${user?.id}`
+          filter: `sender_id=eq.${selectedContact.id},receiver_id=eq.${user.id}`
         },
         (payload) => {
           setMessages(prev => [...prev, payload.new as Message])
@@ -187,6 +201,7 @@ export default function Messages() {
   }
 
   const loadAllUsers = async () => {
+    if (!user) return
     try {
       console.log('Loading all users...')
       setLoading(true)
@@ -194,7 +209,7 @@ export default function Messages() {
       const { data: users, error } = await supabase
         .from('users')
         .select('*')
-        .neq('id', user?.id || '')
+        .neq('id', user.id)
         .limit(20)
 
       if (error) throw error
@@ -215,6 +230,7 @@ export default function Messages() {
   }
 
   const searchUsers = async (email: string) => {
+    if (!user) return
     try {
       console.log('Searching for users with email containing:', email)
       setLoading(true)
@@ -227,7 +243,7 @@ export default function Messages() {
       }
       
       // Don't include the current user
-      query = query.neq('id', user?.id || '')
+      query = query.neq('id', user.id)
         
       // Limit to reasonable number
       query = query.limit(10)
@@ -274,7 +290,7 @@ export default function Messages() {
     }
   }
 
-  if (!isLoaded || loading) {
+  if (userLoading || loading || !user) {
     return <div className="flex justify-center items-center h-64">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
     </div>

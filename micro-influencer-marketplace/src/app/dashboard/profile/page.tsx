@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { User } from '@/lib/types/database'
 import { 
@@ -17,6 +16,7 @@ import {
   BarChart2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 interface SocialMediaLink {
   id: string
@@ -45,8 +45,7 @@ interface Analytics {
 }
 
 export default function Profile() {
-  const { user, isLoaded } = useUser()
-  const userRole = user?.publicMetadata?.role
+  const { user, isLoading: userLoading } = useSupabase()
   const [profile, setProfile] = useState<User | null>(null)
   const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([])
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([])
@@ -55,19 +54,23 @@ export default function Profile() {
   const [loading, setLoading] = useState(true)
   const supabase = createClientComponentClient()
 
+
+  console.log("user", user)
+
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!userLoading && user) {
       loadProfile()
     }
-  }, [isLoaded, user])
+  }, [userLoading, user])
 
   const loadProfile = async () => {
+    if (!user) return
     try {
       // Load user profile
       const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', user?.id)
+        .eq('id', user.id)
         .single()
 
       if (profileError) throw profileError
@@ -77,7 +80,7 @@ export default function Profile() {
       const { data: socialData, error: socialError } = await supabase
         .from('social_media_links')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
 
       if (socialError) throw socialError
       setSocialLinks(socialData || [])
@@ -86,7 +89,7 @@ export default function Profile() {
       const { data: portfolioData, error: portfolioError } = await supabase
         .from('portfolio_items')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (portfolioError) throw portfolioError
@@ -96,7 +99,7 @@ export default function Profile() {
       const { data: analyticsData, error: analyticsError } = await supabase
         .from('influencer_analytics')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(1)
         .single()
@@ -106,7 +109,7 @@ export default function Profile() {
 
       // Calculate profile completion
       const { data: completionData, error: completionError } = await supabase
-        .rpc('calculate_profile_completion', { user_id: user?.id })
+        .rpc('calculate_profile_completion', { user_id: user.id })
 
       if (completionError) throw completionError
       setCompletionPercentage(completionData || 0)
@@ -119,11 +122,12 @@ export default function Profile() {
   }
 
   const addSocialLink = async (platform: string) => {
+    if (!user) return
     try {
       const { error } = await supabase
         .from('social_media_links')
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
           platform,
           url: '',
           username: ''
@@ -171,11 +175,12 @@ export default function Profile() {
   }
 
   const addPortfolioItem = async () => {
+    if (!user) return
     try {
       const { error } = await supabase
         .from('portfolio_items')
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
           title: 'New Portfolio Item',
           description: '',
           media_url: '',
@@ -223,7 +228,7 @@ export default function Profile() {
     }
   }
 
-  if (!isLoaded || loading) {
+  if (userLoading || loading || !user) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -273,7 +278,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {userRole === 'influencer' && (
+      {user?.user_metadata?.role === 'influencer' && (
         <>
           {/* Social Media Links */}
           <div className="bg-white shadow sm:rounded-lg">
@@ -456,7 +461,7 @@ export default function Profile() {
           )}
         </>
       )}
-      {userRole === 'brand' && (
+      {user?.user_metadata?.role === 'brand' && (
         <div className="bg-white shadow sm:rounded-lg p-6">
           <h3 className="text-lg font-medium mb-4">Brand Information</h3>
           <p className="text-gray-700">Company: {(profile as any)?.brand_profile?.company_name || 'N/A'}</p>

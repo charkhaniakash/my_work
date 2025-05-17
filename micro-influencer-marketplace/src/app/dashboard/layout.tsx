@@ -15,8 +15,9 @@ import {
   X,
   LogOut
 } from 'lucide-react'
-import { useUser, useClerk } from '@clerk/nextjs'
 import { toast } from 'react-hot-toast'
+import { useSupabase } from '@/lib/providers/supabase-provider'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -34,13 +35,13 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
-  const { user } = useUser()
-  const { signOut } = useClerk()
   const router = useRouter()
+  const { user, isLoading: userLoading } = useSupabase()
+  const supabase = createClientComponentClient()
 
   const handleLogout = async () => {
     try {
-      await signOut()
+      await supabase.auth.signOut()
       router.push('/auth/sign-in')
       toast.success('Logged out successfully')
     } catch (error) {
@@ -63,7 +64,12 @@ export default function DashboardLayout({
         {sidebarOpen && (
           <div className="fixed inset-0 z-40 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)}>
             <div className="fixed inset-y-0 left-0 w-64 bg-white" onClick={e => e.stopPropagation()}>
-              <SidebarContent pathname={pathname} user={user} onLogout={handleLogout} />
+              <SidebarContent 
+                pathname={pathname} 
+                onLogout={handleLogout} 
+                user={user}
+                isLoading={userLoading}
+              />
             </div>
           </div>
         )}
@@ -72,7 +78,12 @@ export default function DashboardLayout({
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
-          <SidebarContent pathname={pathname} user={user} onLogout={handleLogout} />
+          <SidebarContent 
+            pathname={pathname} 
+            onLogout={handleLogout}
+            user={user}
+            isLoading={userLoading}
+          />
         </div>
       </div>
 
@@ -86,10 +97,16 @@ export default function DashboardLayout({
   )
 }
 
-function SidebarContent({ pathname, user, onLogout }: { 
+function SidebarContent({ 
+  pathname, 
+  onLogout,
+  user,
+  isLoading
+}: { 
   pathname: string
-  user: any
   onLogout: () => Promise<void>
+  user: any
+  isLoading: boolean
 }) {
   return (
     <>
@@ -123,29 +140,33 @@ function SidebarContent({ pathname, user, onLogout }: {
       </div>
 
       <div className="flex flex-shrink-0 border-t border-gray-200 p-4">
-        {user ? (
+        {isLoading ? (
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : user ? (
           <div className="group block w-full flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div>
                   <img
                     className="inline-block h-9 w-9 rounded-full"
-                    src={user.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.emailAddresses[0].emailAddress}`}
-                    alt={user.fullName || 'User avatar'}
+                    src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
+                    alt={user.full_name || user.email}
                   />
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                    {user.fullName || user.emailAddresses[0].emailAddress}
+                    {user.full_name || user.email}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {user.publicMetadata.role || 'User'}
+                    {user.user_metadata?.role || 'User'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={onLogout}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+                className="p-2 text-gray-400 hover:text-gray-500"
                 title="Logout"
               >
                 <LogOut className="h-5 w-5" />
@@ -161,8 +182,8 @@ function SidebarContent({ pathname, user, onLogout }: {
               <div>
                 <img
                   className="inline-block h-9 w-9 rounded-full"
-                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-                  alt=""
+                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=Guest"
+                  alt="Guest"
                 />
               </div>
               <div className="ml-3">

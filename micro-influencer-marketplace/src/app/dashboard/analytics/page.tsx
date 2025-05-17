@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Campaign, CampaignApplication } from '@/lib/types/database'
 import { 
@@ -30,7 +29,6 @@ type Analytics = {
 }
 
 export default function Analytics() {
-  const { user, isLoaded } = useUser()
   const [analytics, setAnalytics] = useState<Analytics>({
     totalCampaigns: 0,
     activeCampaigns: 0,
@@ -44,72 +42,57 @@ export default function Analytics() {
     applicationsByMonth: {}
   })
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    if (isLoaded && user) {
-      loadAnalytics()
-    }
-  }, [isLoaded, user])
-
-  const loadAnalytics = async () => {
-    try {
-      if (!user) return
-
-      if (user.publicMetadata.role === 'brand') {
-        // Load brand analytics
-        const { data: campaigns, error: campaignsError } = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('brand_id', user.id)
-
-        if (campaignsError) {
-          toast.error('Failed to load campaign data')
-          console.error('Campaigns error:', campaignsError)
-          setLoading(false)
-          return
-        }
-
-        // For brand users, fetch applications related to their campaigns
-        const { data: applications, error: applicationsError } = await supabase
-          .from('campaign_applications')
-          .select('*')
-          .in('campaign_id', campaigns?.map(c => c.id) || [])
-
-        if (applicationsError) {
-          toast.error('Failed to load application data')
-          console.error('Applications error:', applicationsError)
-          // Still calculate analytics with campaign data even if application data fails
-          const partialAnalytics = calculateAnalytics(campaigns || [], [])
-          setAnalytics(partialAnalytics)
-          setLoading(false)
-          return
-        }
-
-        // Calculate analytics with both campaign and application data
-        const analytics = calculateAnalytics(campaigns || [], applications || [])
-        setAnalytics(analytics)
-      } else {
-        // Load influencer analytics
-        const { data: applications, error: applicationsError } = await supabase
-          .from('campaign_applications')
-          .select('*, campaign:campaigns(*)')
-          .eq('influencer_id', user.id)
-
-        if (applicationsError) {
-          toast.error('Failed to load application data')
-          console.error('Applications error:', applicationsError)
-          setLoading(false)
-          return
-        }
-
-        // Extract campaigns from applications
-        const campaigns = applications?.map(app => app.campaign).filter(Boolean) || []
-        
-        // Calculate analytics
-        const analytics = calculateAnalytics(campaigns, applications || [])
-        setAnalytics(analytics)
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setUserId(data.user.id)
       }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (userId) {
+      loadAnalytics(userId)
+    }
+  }, [userId])
+
+  const loadAnalytics = async (uid: string) => {
+    try {
+      // Load brand analytics
+      const { data: campaigns, error: campaignsError } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('brand_id', uid)
+
+      if (campaignsError) {
+        toast.error('Failed to load campaign data')
+        console.error('Campaigns error:', campaignsError)
+        setLoading(false)
+        return
+      }
+
+      // For brand users, fetch applications related to their campaigns
+      const { data: applications, error: applicationsError } = await supabase
+        .from('campaign_applications')
+        .select('*')
+        .in('campaign_id', campaigns?.map(c => c.id) || [])
+
+      if (applicationsError) {
+        toast.error('Failed to load application data')
+        console.error('Applications error:', applicationsError)
+        // Still calculate analytics with campaign data even if application data fails
+        const partialAnalytics = calculateAnalytics(campaigns || [], [])
+        setAnalytics(partialAnalytics)
+        setLoading(false)
+        return
+      }
+
+      // Calculate analytics with both campaign and application data
+      const analytics = calculateAnalytics(campaigns || [], applications || [])
+      setAnalytics(analytics)
     } catch (error) {
       console.error('Error loading analytics:', error)
       toast.error('Failed to load analytics')
@@ -154,12 +137,6 @@ export default function Analytics() {
       campaignsByStatus,
       applicationsByMonth
     }
-  }
-
-  if (!isLoaded) {
-    return <div className="flex justify-center items-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-    </div>
   }
 
   if (loading) {

@@ -2,10 +2,12 @@ import { useCallback, useState } from 'react'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { Campaign, CampaignApplication } from '@/lib/types/database'
 import { useUser } from '@clerk/nextjs'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export const useCampaigns = () => {
-  const { supabase } = useSupabase()
-  const { user } = useUser()
+  const supabase = createClientComponentClient()
+  const { user, isLoading: userLoading } = useSupabase()
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

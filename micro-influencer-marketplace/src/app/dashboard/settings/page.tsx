@@ -1,16 +1,16 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { User, BrandProfile, InfluencerProfile } from '@/lib/types/database'
 import { Camera, Save } from 'lucide-react'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 type Profile = BrandProfile | InfluencerProfile
 
 export default function Settings() {
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: userLoading } = useSupabase()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -39,15 +39,14 @@ export default function Settings() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!userLoading && user) {
       loadProfile()
     }
-  }, [isLoaded, user])
+  }, [userLoading, user])
 
   const loadProfile = async () => {
+    if (!user) return
     try {
-      if (!user) return
-
       // Load user data
       const { data: userData, error: userError } = await supabase
         .from('users')
@@ -58,7 +57,7 @@ export default function Settings() {
       if (userError) throw userError
 
       // Load profile data based on role
-      const table = user.publicMetadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
+      const table = user.user_metadata?.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
       const { data: profileData, error: profileError } = await supabase
         .from(table)
         .select('*')
@@ -91,7 +90,6 @@ export default function Settings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
-
     try {
       setSaving(true)
 
@@ -107,8 +105,8 @@ export default function Settings() {
       if (userError) throw userError
 
       // Update profile data
-      const table = user.publicMetadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
-      const profileData = user.publicMetadata.role === 'brand'
+      const table = user.user_metadata?.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
+      const profileData = user.user_metadata?.role === 'brand'
         ? {
             company_name: formData.company_name,
             industry: formData.industry,
@@ -170,7 +168,7 @@ export default function Settings() {
     }
   }
 
-  if (!isLoaded || loading) {
+  if (userLoading || loading || !user) {
     return <div>Loading...</div>
   }
 
@@ -257,7 +255,7 @@ export default function Settings() {
         </div>
 
         {/* Role-specific Information */}
-        {user?.publicMetadata.role === 'brand' ? (
+        {user?.user_metadata?.role === 'brand' ? (
           <div className="overflow-hidden rounded-lg bg-white shadow">
             <div className="p-6">
               <h3 className="text-lg font-medium leading-6 text-gray-900">Brand Information</h3>

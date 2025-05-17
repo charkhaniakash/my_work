@@ -2,18 +2,14 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
-import { ClerkProvider } from '@clerk/nextjs'
-import React from 'react'
-import { AuthProvider } from '@/lib/auth-context'
-import SupabaseProvider from '@/lib/providers/supabase-provider'
-import RoleRedirectWrapper from './components/RoleRedirectWrapper'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 // import MessageNotification from '@/components/MessageNotification'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Micro-Influencer Marketplace',
-  description: 'Connect brands with micro-influencers for authentic partnerships',
+  title: 'Micro Influencer Marketplace',
+  description: 'Connect brands with micro influencers',
 }
 
 export default function RootLayout({
@@ -24,19 +20,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ClerkProvider>
-          <SupabaseProvider>
-            <AuthProvider>
-              <RoleRedirectWrapper>
-                <main className="min-h-screen bg-background">
-                  {children}
-                </main>
-                <Toaster />
-                {/* <MessageNotification /> */}
-              </RoleRedirectWrapper>
-            </AuthProvider>
-          </SupabaseProvider>
-        </ClerkProvider>
+        <SupabaseProvider>
+            <main className="min-h-screen bg-background">
+              {children}
+            </main>
+            <Toaster />
+            {/* <MessageNotification /> */}
+        </SupabaseProvider>
       </body>
     </html>
   )

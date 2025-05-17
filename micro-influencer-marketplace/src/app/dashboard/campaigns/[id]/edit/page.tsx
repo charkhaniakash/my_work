@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Campaign } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
@@ -24,7 +23,6 @@ const NICHE_OPTIONS = [
 export default function EditCampaign() {
   const params = useParams()
   const router = useRouter()
-  const { user } = useUser()
   const supabase = createClientComponentClient()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -82,7 +80,6 @@ export default function EditCampaign() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user) return
 
     try {
       setSaving(true)

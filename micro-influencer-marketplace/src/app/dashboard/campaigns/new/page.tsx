@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
 import { CampaignTemplate } from '@/lib/types/database'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 const NICHE_OPTIONS = [
   'Fashion',
@@ -23,7 +23,6 @@ const NICHE_OPTIONS = [
 
 export default function NewCampaign() {
   const router = useRouter()
-  const { user } = useUser()
   const supabase = createClientComponentClient()
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -39,6 +38,7 @@ export default function NewCampaign() {
     status: 'active' as 'scheduled' | 'active' | 'paused' | 'completed'
   })
   const [templates, setTemplates] = useState<CampaignTemplate[]>([])
+  const { user, isLoading: userLoading } = useSupabase()
 
   useEffect(() => {
     const loadTemplates = async () => {

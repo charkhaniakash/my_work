@@ -5,7 +5,6 @@ import { FileText, Plus, Calendar, DollarSign, Users, ChevronRight, X, Clock } f
 import { useCampaigns } from '@/lib/hooks/useCampaigns'
 import { Campaign } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
-import { useUser } from '@clerk/nextjs'
 
 const nichesOptions = [
   'Fashion',
@@ -21,8 +20,6 @@ const nichesOptions = [
 ]
 
 export default function Campaigns() {
-  const { user } = useUser()
-  const userRole = user?.publicMetadata?.role
   const {
     loading,
     error,
@@ -31,8 +28,7 @@ export default function Campaigns() {
     getCampaigns,
   } = useCampaigns()
 
-
-  console.log("user", user)
+  console.log("user")
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [formData, setFormData] = useState<Partial<Campaign>>({
@@ -80,11 +76,6 @@ export default function Campaigns() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!user?.id) {
-      toast.error('You must be logged in to create a campaign')
-      return
-    }
-
     try {
       // Validate required fields
       if (!formData.title || !formData.description || !formData.budget || !formData.start_date || !formData.end_date) {
@@ -99,7 +90,6 @@ export default function Campaigns() {
 
       const campaign = await createCampaign({
         ...formData as Omit<Campaign, 'id' | 'created_at' | 'updated_at'>,
-        brand_id: user.id,
         budget: Number(formData.budget),
         requirements: formData.requirements || '',
         target_niche: formData.target_niche || [],
@@ -147,15 +137,13 @@ export default function Campaigns() {
             Manage your influencer marketing campaigns
           </p>
         </div>
-        {userRole === 'brand' && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-x-2 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-          >
-            <Plus className="-ml-0.5 h-5 w-5" aria-hidden="true" />
-            Create Campaign
-          </button>
-        )}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center gap-x-2 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        >
+          <Plus className="-ml-0.5 h-5 w-5" aria-hidden="true" />
+          Create Campaign
+        </button>
       </div>
 
       {/* Campaign List */}

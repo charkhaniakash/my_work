@@ -2,13 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useUser } from '@clerk/nextjs'
-import { User } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
 import { Search, Filter, Users, Building2, MapPin, Tag } from 'lucide-react'
 
 export default function Discover() {
-  const { user, isLoaded } = useUser()
   const [profiles, setProfiles] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -21,10 +18,8 @@ export default function Discover() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    if (isLoaded && user) {
-      loadProfiles()
-    }
-  }, [filters, isLoaded, user])
+    loadProfiles()
+  }, [filters])
 
   const loadProfiles = async () => {
     try {
@@ -78,10 +73,6 @@ export default function Discover() {
     'Business',
     'Education'
   ]
-
-  if (!isLoaded) {
-    return <div>Loading...</div>
-  }
 
   return (
     <div className="space-y-6">

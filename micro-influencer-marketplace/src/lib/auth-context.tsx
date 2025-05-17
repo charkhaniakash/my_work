@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser, useClerk } from '@clerk/nextjs'
 
 type AuthContextType = {
   user: any | null
@@ -13,20 +12,15 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoaded } = useUser()
   const [loading, setLoading] = useState(true)
-  const { signOut: clerkSignOut } = useClerk()
   const router = useRouter()
 
   useEffect(() => {
-    if (isLoaded) {
-      setLoading(false)
-    }
-  }, [isLoaded])
+    setLoading(false)
+  }, [])
 
   const signOut = async () => {
     try {
-      await clerkSignOut()
       router.push('/auth/sign-in')
     } catch (error) {
       console.error('SignOut Error:', error)
@@ -35,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user: null, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )

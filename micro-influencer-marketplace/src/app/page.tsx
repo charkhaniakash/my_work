@@ -2,15 +2,8 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { useUser } from '@clerk/nextjs'
 
 export default function Home() {
-  const { user, isLoaded } = useUser()
-
-  if (!isLoaded) {
-    return <div>Loading...</div>
-  }
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-24">
       <h1 className="text-4xl font-bold mb-4">
@@ -20,29 +13,18 @@ export default function Home() {
         Connect with the perfect micro-influencers to grow your brand or showcase your influence to amazing brands.
       </p>
       <div className="flex gap-4">
-        {user ? (
-          <Link
-            href="/dashboard"
-            className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-          >
-            Go to Dashboard
-          </Link>
-        ) : (
-          <>
-            <Link
-              href="/auth/sign-in"
-              className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/auth/sign-up"
-              className="px-6 py-3 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50 transition-colors"
-            >
-              Create Account
-            </Link>
-          </>
-        )}
+        <Link
+          href="/auth/sign-in"
+          className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+        >
+          Sign In
+        </Link>
+        <Link
+          href="/auth/sign-up"
+          className="px-6 py-3 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50 transition-colors"
+        >
+          Create Account
+        </Link>
       </div>
     </div>
   )

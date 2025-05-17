@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Search, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 interface NewConversationProps {
   onClose: () => void
@@ -12,7 +13,7 @@ interface NewConversationProps {
 }
 
 export default function NewConversation({ onClose, onConversationCreated }: NewConversationProps) {
-  const { user } = useUser()
+  const { user, isLoading: userLoading } = useSupabase()
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -61,8 +62,8 @@ export default function NewConversation({ onClose, onConversationCreated }: NewC
       const { error } = await supabase
         .from('conversations')
         .insert({
-          brand_id: user?.publicMetadata.role === 'brand' ? user?.id : otherUser.id,
-          influencer_id: user?.publicMetadata.role === 'brand' ? otherUser.id : user?.id
+          brand_id: user?.user_metadata?.role === 'brand' ? user?.id : otherUser.id,
+          influencer_id: user?.user_metadata?.role === 'brand' ? otherUser.id : user?.id
         })
 
       if (error) throw error

@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '@clerk/nextjs'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 export default function Onboarding() {
   const router = useRouter()
-  const { user, isLoaded } = useUser()
+  const { user, isLoading: userLoading } = useSupabase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
@@ -28,12 +28,10 @@ export default function Onboarding() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
-
     setLoading(true)
     setError('')
-
     try {
-      const profileData = user.publicMetadata.role === 'brand'
+      const profileData = user.user_metadata?.role === 'brand'
         ? {
             user_id: user.id,
             company_name: formData.bio,
@@ -48,16 +46,13 @@ export default function Onboarding() {
             location: formData.location,
             social_links: formData.socialLinks,
           }
-
       const { error: profileError } = await supabase
-        .from(user.publicMetadata.role === 'brand' ? 'brand_profiles' : 'influencer_profiles')
+        .from(user.user_metadata?.role === 'brand' ? 'brand_profiles' : 'influencer_profiles')
         .insert([profileData])
-
       if (profileError) {
         console.error('Profile Error:', profileError)
         throw new Error('Failed to create profile. Please try again.')
       }
-
       router.push('/dashboard')
     } catch (error) {
       console.error('Error:', error)
@@ -86,7 +81,7 @@ export default function Onboarding() {
     }
   }
 
-  if (!isLoaded || !user) return null
+  if (userLoading || !user) return null
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -95,7 +90,7 @@ export default function Onboarding() {
           Complete your profile
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Tell us more about {user.publicMetadata.role === 'brand' ? 'your brand' : 'yourself'}
+          Tell us more about {user.user_metadata?.role === 'brand' ? 'your brand' : 'yourself'}
         </p>
       </div>
 
@@ -119,7 +114,7 @@ export default function Onboarding() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-                {user.publicMetadata.role === 'brand' ? 'Company Name' : 'Bio'}
+                {user.user_metadata?.role === 'brand' ? 'Company Name' : 'Bio'}
               </label>
               <div className="mt-1">
                 <textarea
@@ -151,7 +146,7 @@ export default function Onboarding() {
               </div>
             </div>
 
-            {user.publicMetadata.role === 'brand' ? (
+            {user.user_metadata?.role === 'brand' ? (
               <>
                 <div>
                   <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
