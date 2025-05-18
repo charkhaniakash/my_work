@@ -17,8 +17,6 @@ export const useCampaigns = () => {
         setLoading(true)
         setError(null)
 
-        console.log('Current Clerk user:', user)
-
         if (!user?.id) {
           throw new Error('User not authenticated')
         }
@@ -26,25 +24,40 @@ export const useCampaigns = () => {
         // First check if the user exists and is a brand
         const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('*')  // Select all fields to see what we have
+          .select('*')
           .eq('id', user.id)
           .maybeSingle()
 
-        console.log('Supabase user data:', userData)
-        console.log('Supabase user error:', userError)
+        if (userError) throw userError
+        if (!userData || userData.role !== 'brand') {
+          throw new Error('Only brands can create campaigns')
+        }
 
-        // if (userError) throw userError
-        // if (!userData || userData.role !== 'brand') {
-        //   throw new Error('Only brands can create campaigns')
-        // }
+        console.log('campaignData:', user.id)
 
+        // const { data, error } = await supabase
+        // .from('campaigns')
+        // .insert([{
+        //   ...campaignData,
+        //   brand_id: user.id.toString() // Ensure this is a string to match auth.uid()::TEXT
+        // }])
+        // .select()
+        // .single()
+
+        // ONLY FOR TESTING - Hardcode the ID that worked manually
         const { data, error } = await supabase
-          .from('campaigns')
-          .insert([campaignData])
-          .select()
-          .maybeSingle()
+        .from('campaigns')
+        .insert([{
+          ...campaignData,
+          brand_id: user.id // Use the authenticated user's id
+        }])
+        .select()
+        .single();
 
-        console.log('Campaign data////:', data)
+        
+
+        console.log('datadata data:', data)
+
         if (error) {
           console.error('Campaign creation error:', error)
           throw error
@@ -58,8 +71,10 @@ export const useCampaigns = () => {
         setLoading(false)
       }
     },
-    [supabase, user]
+    [user, supabase]
   )
+
+  
 
   const updateCampaign = useCallback(
     async (
