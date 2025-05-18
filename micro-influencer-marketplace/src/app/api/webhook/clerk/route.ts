@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
     
     // Process the webhook based on event type
     const eventType = payload.type;
-    console.log(`Webhook received: ${eventType}`);
     
     // Handle user creation
     if (eventType === 'user.created') {
@@ -35,7 +34,6 @@ export async function POST(req: NextRequest) {
         });
         
         if (error) throw error;
-        console.log(`User ${id} created in Supabase`);
       } catch (error) {
         console.error('Error creating user in Supabase:', error);
         // Continue processing - don't fail the webhook
@@ -59,7 +57,6 @@ export async function POST(req: NextRequest) {
             .eq('id', id);
             
           if (error) throw error;
-          console.log(`User ${id} role updated to ${role}`);
         } catch (error) {
           console.error('Error updating user in Supabase:', error);
           // Continue processing - don't fail the webhook

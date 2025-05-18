@@ -4,8 +4,11 @@ import React, { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { Search, Filter, Users, Building2, MapPin, Tag } from 'lucide-react'
+import { useSupabase } from '@/lib/providers/supabase-provider'
+import { User } from '@/lib/types/database'
 
 export default function Discover() {
+  const { user } = useSupabase();
   const [profiles, setProfiles] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -31,6 +34,8 @@ export default function Discover() {
           influencer_profile:influencer_profiles(*)
         `)
 
+        console.log("query", query)
+
       // Apply filters
       if (filters.role !== 'all') {
         query = query.eq('role', filters.role)
@@ -44,6 +49,7 @@ export default function Discover() {
 
       const { data, error } = await query
 
+      console.log("data", data)
       if (error) throw error
       setProfiles(data || [])
     } catch (error) {
@@ -54,11 +60,13 @@ export default function Discover() {
     }
   }
 
-  const filteredProfiles = profiles.filter(profile =>
-    profile.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.bio?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredProfiles = profiles
+    .filter(profile => profile.id !== user?.id)
+    .filter(profile =>
+      profile.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.bio?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
   const nichesOptions = [
     'all',
@@ -113,7 +121,7 @@ export default function Discover() {
           onChange={(e) => setFilters(f => ({ ...f, niche: e.target.value }))}
           className="rounded-md border-0 py-2 pl-3 pr-8 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
         >
-          {nichesOptions.map(niche => (
+          {nichesOptions.map((niche: string) => (
             <option key={niche} value={niche}>
               {niche.charAt(0).toUpperCase() + niche.slice(1)}
             </option>

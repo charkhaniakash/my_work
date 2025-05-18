@@ -23,7 +23,6 @@ export function SignInForm() {
       const { data, error } = await signIn(formData.email, formData.password)
 
 
-      console.log("data???", data)
       if (error) {
         setError(error.message)
       } else if (data?.user) {

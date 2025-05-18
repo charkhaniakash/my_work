@@ -33,7 +33,6 @@ export const useCampaigns = () => {
           throw new Error('Only brands can create campaigns')
         }
 
-        console.log('campaignData:', user.id)
 
         // const { data, error } = await supabase
         // .from('campaigns')
@@ -56,7 +55,6 @@ export const useCampaigns = () => {
 
         
 
-        console.log('datadata data:', data)
 
         if (error) {
           console.error('Campaign creation error:', error)

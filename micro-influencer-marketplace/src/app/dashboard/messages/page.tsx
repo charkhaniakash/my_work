@@ -7,17 +7,9 @@ import { toast } from 'react-hot-toast'
 import { Send, Users, Building2, UserPlus, Plus, Search } from 'lucide-react'
 import NewConversation from '@/components/NewConversation'
 import { useSupabase } from '@/lib/providers/supabase-provider'
+import { User as DBUser } from '@/lib/types/database'
 
-interface User {
-  id: string
-  email: string
-  full_name: string
-  avatar_url?: string
-  role?: string
-  user_metadata?: {
-    role?: string
-  }
-}
+type User = DBUser;
 
 interface Conversation {
   id: string
@@ -51,6 +43,16 @@ export default function Messages() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showNewConversation, setShowNewConversation] = useState(false)
+  const [modalUserSearchResults, setModalUserSearchResults] = useState<User[]>([])
+  const [modalLoading, setModalLoading] = useState(false)
+
+  // Add effect to handle contact parameter from URL
+  useEffect(() => {
+    const contactId = searchParams.get('contact')
+    if (contactId && !selectedContact) {
+      loadContact(contactId)
+    }
+  }, [searchParams, selectedContact])
 
   console.log("contacts" , contacts)
   useEffect(() => {
@@ -203,18 +205,16 @@ export default function Messages() {
   const loadAllUsers = async () => {
     if (!user) return
     try {
-      console.log('Loading all users...')
       setLoading(true)
-      // Load all users except the current user
       const { data: users, error } = await supabase
         .from('users')
         .select('*')
         .neq('id', user.id)
+        .neq('role', user.role) // Only show users with different roles
         .limit(20)
 
       if (error) throw error
       
-      console.log('Found users:', users?.length || 0)
       // Filter out existing contacts
       const filteredUsers = (users || []).filter(u => 
         !contacts.some(c => c.id === u.id)
@@ -229,30 +229,27 @@ export default function Messages() {
     }
   }
 
-  const searchUsers = async (email: string) => {
+  const searchUsers = async (searchTerm: string) => {
     if (!user) return
     try {
-      console.log('Searching for users with email containing:', email)
       setLoading(true)
       
-      let query = supabase.from('users').select('*')
+      let query = supabase
+        .from('users')
+        .select('*')
+        .neq('id', user.id)
+        .neq('role', user.role) // Only show users with different roles
       
-      // If email is provided, filter by it
-      if (email.trim()) {
-        query = query.ilike('email', `%${email}%`)
+      if (searchTerm.trim()) {
+        query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
       }
       
-      // Don't include the current user
-      query = query.neq('id', user.id)
-        
-      // Limit to reasonable number
       query = query.limit(10)
       
       const { data: users, error } = await query
 
       if (error) throw error
 
-      console.log('Search results:', users?.length || 0, 'users')
       // Filter out existing contacts
       const filteredUsers = (users || []).filter(u => 
         !contacts.some(c => c.id === u.id)
@@ -290,6 +287,49 @@ export default function Messages() {
     }
   }
 
+  // Add filtered contacts based on search term
+  const filteredContacts = contacts.filter(contact => 
+    contact.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.email.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Update the search input handler
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+  }
+
+  // Modal-specific user search for NewConversation
+  const modalSearchUsers = async (searchTerm: string) => {
+    if (!user) return
+    try {
+      setModalLoading(true)
+      let query = supabase
+        .from('users')
+        .select('*')
+        .neq('id', user.id)
+        .neq('role', user.role)
+      if (searchTerm.trim()) {
+        query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      }
+      query = query.limit(10)
+      const { data: users, error } = await query
+      if (error) throw error
+      const filteredUsers = (users || []).filter(u => !contacts.some(c => c.id === u.id))
+      setModalUserSearchResults(filteredUsers)
+    } catch (error) {
+      console.error('Error searching users:', error)
+      toast.error('Failed to search users')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  // When opening the modal, load initial users for modal only
+  const openNewConversation = () => {
+    setShowNewConversation(true)
+    modalSearchUsers('')
+  }
+
   if (userLoading || loading || !user) {
     return <div className="flex justify-center items-center h-64">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -304,7 +344,7 @@ export default function Messages() {
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
             <button
-              onClick={() => setShowNewConversation(true)}
+              onClick={openNewConversation}
               className="p-1 rounded-full hover:bg-gray-100"
               title="New conversation"
             >
@@ -317,16 +357,16 @@ export default function Messages() {
               type="text"
               placeholder="Search conversations"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
             />
           </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
-          {contacts.length > 0 ? (
+          {filteredContacts.length > 0 ? (
             <ul role="list" className="divide-y divide-gray-200">
-              {contacts.map((contact) => (
+              {filteredContacts.map((contact) => (
                 <li
                   key={contact.id}
                   className={`cursor-pointer hover:bg-gray-50 ${
@@ -368,9 +408,15 @@ export default function Messages() {
             </ul>
           ) : (
             <div className="p-4 text-center text-sm text-gray-500">
-              <p>No conversations yet</p>
-              <p className="mt-1">Click the "+" icon above to start a new conversation</p>
-              <p className="mt-2">Or apply to campaigns to get in touch with brands</p>
+              {searchTerm ? (
+                <p>No conversations found matching "{searchTerm}"</p>
+              ) : (
+                <>
+                  <p>No conversations yet</p>
+                  <p className="mt-1">Click the "+" icon above to start a new conversation</p>
+                  <p className="mt-2">Or apply to campaigns to get in touch with brands</p>
+                </>
+              )}
             </div>
           )}
         </nav>
@@ -488,10 +534,16 @@ export default function Messages() {
       {showNewConversation && (
         <NewConversation
           onClose={() => setShowNewConversation(false)}
-          onConversationCreated={() => {
-            loadConversations()
+          onConversationCreated={(contact) => {
+            setSelectedContact(contact)
+            if (!contacts.find(c => c.id === contact.id)) {
+              setContacts(prev => [...prev, contact])
+            }
             setShowNewConversation(false)
           }}
+          userSearchResults={modalUserSearchResults}
+          onSearch={modalSearchUsers}
+          loading={modalLoading}
         />
       )}
     </div>

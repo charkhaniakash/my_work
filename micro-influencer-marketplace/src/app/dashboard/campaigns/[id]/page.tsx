@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { use, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Campaign, CampaignApplication } from '@/lib/types/database'
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useSupabase } from '@/lib/providers/supabase-provider'
+import { has } from 'lodash'
 
 type ApplicationWithInfluencer = CampaignApplication & { influencer: { full_name: string } }
 
@@ -40,28 +41,32 @@ export default function CampaignDetail() {
 
   useEffect(() => {
     if (params.id) {
-    loadCampaign()
+      loadCampaign()
       loadApplications()
-      loadFiles()
-      setNotes(campaign?.notes || '')
-      loadTasks()
     }
   }, [params.id])
 
-  // Check if influencer has already applied
+  // Unified effect to load tasks, files, and notes when campaign.id is ready
   useEffect(() => {
-    if (params.id) {
+    if (campaign?.id) {
+      loadTasks();
+      loadFiles();
+      setNotes(campaign.notes || '');
+    }
+  }, [campaign?.id]);
+
+  useEffect(() => {
+    if (!userLoading && params.id && user?.id) {
       supabase
         .from('campaign_applications')
         .select('id')
         .eq('campaign_id', params.id)
-        .eq('influencer_id', user?.id)
+        .eq('influencer_id', user.id)
         .then(({ data }) => {
           setHasApplied(!!(data && data.length > 0))
         })
     }
-  }, [params.id])
-
+  }, [params.id, user?.id, userLoading])
   const loadCampaign = async () => {
     try {
       const { data, error } = await supabase
@@ -126,8 +131,8 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
-      setApplications(applications.map(app => 
-        app.id === applicationId 
+      setApplications(applications.map(app =>
+        app.id === applicationId
           ? { ...app, status: newStatus }
           : app
       ))
@@ -321,10 +326,10 @@ export default function CampaignDetail() {
               </div>
             )}
             {campaign.target_location && (
-            <div className="mt-2 flex items-center text-sm text-gray-500">
-              <MapPin className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
+              <div className="mt-2 flex items-center text-sm text-gray-500">
+                <MapPin className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
                 {campaign.target_location}
-            </div>
+              </div>
             )}
             <div className="mt-2 flex items-center text-sm text-gray-500">
               <Tag className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
@@ -332,42 +337,44 @@ export default function CampaignDetail() {
             </div>
           </div>
         </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <button
-            type="button"
-            onClick={() => router.push(`/dashboard/campaigns/${campaign.id}/edit`)}
-            className="ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-          >
-            Edit Campaign
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const { error } = await supabase
-                  .from('campaign_templates')
-                  .insert({
-                    brand_id: user?.id,
-                    title: campaign.title,
-                    description: campaign.description,
-                    budget: campaign.budget,
-                    target_location: campaign.target_location,
-                    target_niche: campaign.target_niche,
-                    requirements: campaign.requirements,
-                    deliverables: campaign.deliverables
-                  });
-                if (error) throw error;
-                toast.success('Campaign saved as template!');
-              } catch (error) {
-                console.error('Error saving template:', error);
-                toast.error('Failed to save template');
-              }
-            }}
-            className="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-          >
-            Save as Template
-          </button>
-        </div>
+        {user?.user_metadata?.role === 'brand' && (
+          <div className="mt-4 flex md:ml-4 md:mt-0">
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard/campaigns/${campaign.id}/edit`)}
+              className="ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            >
+              Edit Campaign
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const { error } = await supabase
+                    .from('campaign_templates')
+                    .insert({
+                      brand_id: user?.id,
+                      title: campaign.title,
+                      description: campaign.description,
+                      budget: campaign.budget,
+                      target_location: campaign.target_location,
+                      target_niche: campaign.target_niche,
+                      requirements: campaign.requirements,
+                      deliverables: campaign.deliverables
+                    });
+                  if (error) throw error;
+                  toast.success('Campaign saved as template!');
+                } catch (error) {
+                  console.error('Error saving template:', error);
+                  toast.error('Failed to save template');
+                }
+              }}
+              className="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            >
+              Save as Template
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Campaign Details */}
@@ -379,10 +386,10 @@ export default function CampaignDetail() {
               <h4 className="text-sm font-medium text-gray-500">Description</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.description}</p>
             </div>
-              <div>
+            <div>
               <h4 className="text-sm font-medium text-gray-500">Requirements</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.requirements}</p>
-              </div>
+            </div>
             <div>
               <h4 className="text-sm font-medium text-gray-500">Deliverables</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.deliverables}</p>
@@ -391,152 +398,161 @@ export default function CampaignDetail() {
         </div>
       </div>
 
-      {user?.user_metadata?.role === 'influencer' && (
+
+
+      {!userLoading && hasApplied && (
+        <div className="bg-green-100 border border-green-400 text-green-800 shadow sm:rounded-lg p-6 my-6">
+          <h3 className="text-lg font-semibold mb-2">You have already applied to this campaign.</h3>
+        </div>
+      )}
+
+      {user?.user_metadata?.role === 'influencer' && !hasApplied && (
         <div className="bg-white shadow sm:rounded-lg p-6 my-6">
           <h3 className="text-lg font-semibold mb-2">Apply to this Campaign</h3>
-          {hasApplied ? (
-            <div className="text-green-600 font-medium">You have already applied to this campaign.</div>
-          ) : (
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!pitch.trim() || !proposedRate) return toast.error('Please fill all fields');
-                const { error } = await supabase
-                  .from('campaign_applications')
-                  .insert({
-                    campaign_id: params.id,
-                    influencer_id: user.id,
-                    pitch,
-                    proposed_rate: Number(proposedRate),
-                    status: 'pending',
-                  });
-                if (!error) {
-                  toast.success('Application submitted!');
-                  setHasApplied(true);
-                } else {
-                  toast.error('Failed to apply');
-                }
-              }}
-              className="space-y-4"
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!pitch.trim() || !proposedRate) return toast.error('Please fill all fields');
+              const { error } = await supabase
+                .from('campaign_applications')
+                .insert({
+                  campaign_id: params.id,
+                  influencer_id: user.id,
+                  pitch,
+                  proposed_rate: Number(proposedRate),
+                  status: 'pending',
+                  brand_id: campaign?.brand_id
+                });
+              if (!error) {
+                toast.success('Application submitted!');
+                setHasApplied(true);
+              } else {
+                toast.error('Failed to apply');
+              }
+            }}
+            className="space-y-4"
+          >
+            <textarea
+              required
+              placeholder="Your pitch to the brand..."
+              value={pitch}
+              onChange={e => setPitch(e.target.value)}
+              className="w-full border rounded p-2"
+            />
+            <input
+              type="number"
+              required
+              placeholder="Proposed Rate ($)"
+              value={proposedRate}
+              onChange={e => setProposedRate(e.target.value)}
+              className="w-full border rounded p-2"
+            />
+            <button
+              type="submit"
+              className="bg-indigo-600 text-white px-4 py-2 rounded"
             >
-              <textarea
-                required
-                placeholder="Your pitch to the brand..."
-                value={pitch}
-                onChange={e => setPitch(e.target.value)}
-                className="w-full border rounded p-2"
-              />
-              <input
-                type="number"
-                required
-                placeholder="Proposed Rate ($)"
-                value={proposedRate}
-                onChange={e => setProposedRate(e.target.value)}
-                className="w-full border rounded p-2"
-              />
-              <button
-                type="submit"
-                className="bg-indigo-600 text-white px-4 py-2 rounded"
-              >
-                Apply
-              </button>
-            </form>
-          )}
+              Apply
+            </button>
+          </form>
+
         </div>
       )}
 
       {/* Applications */}
-      <div className="bg-white shadow sm:rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold leading-6 text-gray-900">Applications</h3>
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-              {applications.length} total
-            </span>
-          </div>
-          <div className="mt-6 flow-root">
-            <ul role="list" className="-my-5 divide-y divide-gray-200">
-            {applications.map((application) => (
-                <li key={application.id} className="py-5">
-                  <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
-                <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {/* Influencer avatar and name */}
-                        {(application.influencer && 'profile_image' in application.influencer && (application.influencer as any).profile_image) ? (
-                          <img
-                            src={(application.influencer as any).profile_image}
-                            alt={application.influencer.full_name || ''}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
-                            <Users className="h-6 w-6" />
+      {user?.user_metadata?.role === 'brand' && (
+        <div className="bg-white shadow sm:rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold leading-6 text-gray-900">Applications</h3>
+              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                {applications.length} total
+              </span>
+            </div>
+            <div className="mt-6 flow-root">
+              <ul role="list" className="-my-5 divide-y divide-gray-200">
+                {applications.map((application) => (
+                  <li key={application.id} className="py-5">
+                    <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {/* Influencer avatar and name */}
+                          {(application.influencer && 'profile_image' in application.influencer && (application.influencer as any).profile_image) ? (
+                            <img
+                              src={(application.influencer as any).profile_image}
+                              alt={application.influencer.full_name || ''}
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
+                              <Users className="h-6 w-6" />
+                            </div>
+                          )}
+                          <div>
+                            <a
+                              href={`/dashboard/profile/${application.influencer_id}`}
+                              className="text-sm font-semibold text-indigo-700 hover:underline"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {application.influencer?.full_name || 'Unknown'}
+                            </a>
+                            <p className="text-xs text-gray-500">@{(application.influencer as any)?.username || 'username'}</p>
                           </div>
-                        )}
-                  <div>
-                          <a
-                            href={`/dashboard/profile/${application.influencer_id}`}
-                            className="text-sm font-semibold text-indigo-700 hover:underline"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {application.influencer?.full_name || 'Unknown'}
-                          </a>
-                          <p className="text-xs text-gray-500">@{(application.influencer as any)?.username || 'username'}</p>
+                        </div>
+                        <div className="ml-4 flex items-center space-x-4">
+                          <div className="text-sm text-gray-500">
+                            ${application.proposed_rate}
+                          </div>
+                          {application.status === 'pending' && (
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleApplicationStatus(application.id, 'accepted')}
+                                className="inline-flex items-center rounded-full bg-green-100 p-1 text-green-600 hover:bg-green-200"
+                              >
+                                <CheckCircle className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => handleApplicationStatus(application.id, 'rejected')}
+                                className="inline-flex items-center rounded-full bg-red-100 p-1 text-red-600 hover:bg-red-200"
+                              >
+                                <XCircle className="h-5 w-5" />
+                              </button>
+                            </div>
+                          )}
+                          {application.status === 'accepted' && (
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                              <CheckCircle className="mr-1 h-4 w-4" />
+                              Accepted
+                            </span>
+                          )}
+                          {application.status === 'rejected' && (
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                              <XCircle className="mr-1 h-4 w-4" />
+                              Rejected
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="ml-4 flex items-center space-x-4">
-                        <div className="text-sm text-gray-500">
-                          ${application.proposed_rate}
-                  </div>
-                    {application.status === 'pending' && (
-                          <div className="flex space-x-2">
-                        <button
-                              onClick={() => handleApplicationStatus(application.id, 'accepted')}
-                              className="inline-flex items-center rounded-full bg-green-100 p-1 text-green-600 hover:bg-green-200"
-                        >
-                              <CheckCircle className="h-5 w-5" />
-                        </button>
-                        <button
-                              onClick={() => handleApplicationStatus(application.id, 'rejected')}
-                              className="inline-flex items-center rounded-full bg-red-100 p-1 text-red-600 hover:bg-red-200"
-                        >
-                              <XCircle className="h-5 w-5" />
-                        </button>
-                          </div>
-                    )}
-                        {application.status === 'accepted' && (
-                          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            <CheckCircle className="mr-1 h-4 w-4" />
-                            Accepted
-                          </span>
-                        )}
-                        {application.status === 'rejected' && (
-                          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                            <XCircle className="mr-1 h-4 w-4" />
-                            Rejected
-                      </span>
-                    )}
-                  </div>
-                </div>
-                    <div className="mt-2 ml-14">
-                      <p className="text-sm text-gray-800 line-clamp-2">{application.pitch}</p>
+                      <div className="mt-2 ml-14">
+                        <p className="text-sm text-gray-800 line-clamp-2">{application.pitch}</p>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-400 ml-14">
+                        Applied {new Date(application.created_at).toLocaleDateString()}
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-gray-400 ml-14">
-                      Applied {new Date(application.created_at).toLocaleDateString()}
-                    </p>
-              </div>
-                </li>
-            ))}
-            {applications.length === 0 && (
-                <li className="py-5 text-center text-gray-500">
-                  No applications yet
-                </li>
-              )}
-            </ul>
+                  </li>
+                ))}
+                {applications.length === 0 && (
+                  <li className="py-5 text-center text-gray-500">
+                    No applications yet
+                  </li>
+                )}
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Internal Notes */}

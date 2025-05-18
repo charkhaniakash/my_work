@@ -6,39 +6,31 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Search, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useSupabase } from '@/lib/providers/supabase-provider'
+import { User } from '@/lib/types/database'
+import { supabase } from '@/lib/supabase'
 
 interface NewConversationProps {
   onClose: () => void
-  onConversationCreated: () => void
+  onConversationCreated: (contact: User) => void
+  userSearchResults: User[]
+  onSearch: (searchTerm: string) => void
+  loading: boolean
 }
 
-export default function NewConversation({ onClose, onConversationCreated }: NewConversationProps) {
+export default function NewConversation({
+  onClose,
+  onConversationCreated,
+  userSearchResults,
+  onSearch,
+  loading
+}: NewConversationProps) {
   const { user, isLoading: userLoading } = useSupabase()
   const [searchTerm, setSearchTerm] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const supabase = createClientComponentClient()
 
-  const searchUsers = async () => {
-    if (!searchTerm.trim()) return
-
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .or(`full_name.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%`)
-        .neq('id', user?.id)
-        .limit(10)
-
-      if (error) throw error
-      setSearchResults(data || [])
-    } catch (error) {
-      console.error('Error searching users:', error)
-      toast.error('Failed to search users')
-    } finally {
-      setLoading(false)
-    }
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchTerm(value)
+    onSearch(value)
   }
 
   const startConversation = async (otherUser: any) => {
@@ -53,7 +45,7 @@ export default function NewConversation({ onClose, onConversationCreated }: NewC
       if (checkError && checkError.code !== 'PGRST116') throw checkError
 
       if (existingConversation) {
-        onConversationCreated()
+        onConversationCreated(otherUser)
         onClose()
         return
       }
@@ -69,7 +61,7 @@ export default function NewConversation({ onClose, onConversationCreated }: NewC
       if (error) throw error
 
       toast.success('Conversation started')
-      onConversationCreated()
+      onConversationCreated(otherUser)
       onClose()
     } catch (error) {
       console.error('Error starting conversation:', error)
@@ -78,10 +70,10 @@ export default function NewConversation({ onClose, onConversationCreated }: NewC
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">New Conversation</h3>
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">New Conversation</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
@@ -90,60 +82,65 @@ export default function NewConversation({ onClose, onConversationCreated }: NewC
           </button>
         </div>
 
-        <div className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name or username"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && searchUsers()}
-              className="block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
-            />
-          </div>
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search users by name or email"
+            value={searchTerm}
+            onChange={handleSearch}
+            className="block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+          />
+        </div>
 
-          <div className="mt-4">
-            {loading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
-              </div>
-            ) : searchResults.length > 0 ? (
-              <ul className="divide-y divide-gray-200">
-                {searchResults.map((result) => (
-                  <li
-                    key={result.id}
-                    className="py-3 cursor-pointer hover:bg-gray-50"
-                    onClick={() => startConversation(result)}
-                  >
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        {result.profile_image ? (
-                          <img
-                            src={result.profile_image}
-                            alt={result.full_name || ''}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-gray-200" />
-                        )}
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-900">
-                          {result.full_name || result.username}
-                        </p>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {result.role}
-                        </p>
-                      </div>
+        <div className="max-h-96 overflow-y-auto">
+          {loading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+            </div>
+          ) : userSearchResults.length > 0 ? (
+            <ul className="divide-y divide-gray-200">
+              {userSearchResults.map((user) => (
+                <li
+                  key={user.id}
+                  className="py-3 px-4 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => startConversation(user)}
+                >
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      {user.avatar_url ? (
+                        <img
+                          className="h-10 w-10 rounded-full"
+                          src={user.avatar_url}
+                          alt={user.full_name}
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                          <span className="text-gray-500 text-sm">
+                            {user.full_name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </li>
-                ))}
-              </ul>
-            ) : searchTerm ? (
-              <p className="text-center text-gray-500 py-4">No users found</p>
-            ) : null}
-          </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.full_name}
+                      </p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-center py-4 text-gray-500">
+              {searchTerm ? (
+                <p>No users found matching "{searchTerm}"</p>
+              ) : (
+                <p>Start typing to search for users</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

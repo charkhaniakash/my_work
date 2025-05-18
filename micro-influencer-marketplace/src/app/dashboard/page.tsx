@@ -240,6 +240,8 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
+
+        {user?.user_metadata?.role === 'brand' && (
         <div className="overflow-hidden rounded-lg bg-white shadow">
           <div className="p-6">
             <h3 className="text-base font-semibold leading-6 text-gray-900">Quick Actions</h3>
@@ -261,6 +263,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

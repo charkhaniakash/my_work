@@ -55,7 +55,6 @@ export default function Profile() {
   const supabase = createClientComponentClient()
 
 
-  console.log("user", user)
 
   useEffect(() => {
     if (!userLoading && user) {

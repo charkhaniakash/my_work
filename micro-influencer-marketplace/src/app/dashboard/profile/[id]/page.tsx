@@ -45,7 +45,6 @@ export default function PublicProfile() {
   }
 
 
-  console.log("profile", profile)
 
   if (loading) return <div className="flex justify-center items-center h-64">Loading...</div>
   if (!profile) return <div className="text-center py-12">Profile not found</div>
