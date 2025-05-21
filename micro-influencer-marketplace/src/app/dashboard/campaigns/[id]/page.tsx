@@ -40,20 +40,22 @@ export default function CampaignDetail() {
   const { user, isLoading: userLoading } = useSupabase()
 
   useEffect(() => {
+    console.log('User state:', { user, userLoading })
     if (params.id) {
       loadCampaign()
       loadApplications()
     }
-  }, [params.id])
+  }, [params.id, user, userLoading])
 
   // Unified effect to load tasks, files, and notes when campaign.id is ready
   useEffect(() => {
+    console.log('Loading campaign data:', { campaignId: campaign?.id, userId: user?.id })
     if (campaign?.id) {
       loadTasks();
       loadFiles();
       setNotes(campaign.notes || '');
     }
-  }, [campaign?.id]);
+  }, [campaign?.id, user?.id]);
 
   useEffect(() => {
     if (!userLoading && params.id && user?.id) {
@@ -69,13 +71,18 @@ export default function CampaignDetail() {
   }, [params.id, user?.id, userLoading])
   const loadCampaign = async () => {
     try {
+      console.log('Loading campaign for ID:', params.id)
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
         .eq('id', params.id)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error loading campaign:', error)
+        throw error
+      }
+      console.log('Campaign loaded:', data)
       setCampaign(data)
     } catch (error) {
       console.error('Error loading campaign:', error)
@@ -105,21 +112,33 @@ export default function CampaignDetail() {
   }
 
   const loadFiles = async () => {
+    console.log('Loading files for campaign:', campaign?.id)
     const { data, error } = await supabase
       .from('campaign_files')
       .select('*')
       .eq('campaign_id', campaign?.id || '')
       .order('created_at', { ascending: false })
-    if (!error) setFiles(data || [])
+    if (error) {
+      console.error('Error loading files:', error)
+    } else {
+      console.log('Files loaded:', data)
+      setFiles(data || [])
+    }
   }
 
   const loadTasks = async () => {
+    console.log('Loading tasks for campaign:', campaign?.id)
     const { data, error } = await supabase
       .from('deliverable_tasks')
       .select('*')
       .eq('campaign_id', campaign?.id || '')
       .order('created_at', { ascending: true })
-    if (!error) setTasks(data || [])
+    if (error) {
+      console.error('Error loading tasks:', error)
+    } else {
+      console.log('Tasks loaded:', data)
+      setTasks(data || [])
+    }
   }
 
   const handleApplicationStatus = async (applicationId: string, newStatus: 'accepted' | 'rejected') => {

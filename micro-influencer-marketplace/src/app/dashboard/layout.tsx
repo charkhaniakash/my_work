@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -16,7 +16,6 @@ import {
   LogOut
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { useSupabase } from '@/lib/providers/supabase-provider'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 const navigation = [
@@ -34,10 +33,32 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const pathname = usePathname()
   const router = useRouter()
-  const { user, isLoading: userLoading } = useSupabase()
   const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user)
+      } catch (error) {
+        console.error('Error getting user:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -68,7 +89,7 @@ export default function DashboardLayout({
                 pathname={pathname} 
                 onLogout={handleLogout} 
                 user={user}
-                isLoading={userLoading}
+                isLoading={isLoading}
               />
             </div>
           </div>
@@ -82,7 +103,7 @@ export default function DashboardLayout({
             pathname={pathname} 
             onLogout={handleLogout}
             user={user}
-            isLoading={userLoading}
+            isLoading={isLoading}
           />
         </div>
       </div>

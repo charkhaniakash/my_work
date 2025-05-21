@@ -6,13 +6,17 @@ import { useAuth } from '@/lib/auth-context'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
+import { useSupabase } from '@/lib/providers/supabase-provider'
+import { useRouter } from 'next/navigation'
 
 export default function AvailableCampaigns() {
-  const { user } = useAuth()
+  const { user } = useSupabase()
+  const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
+  const [appliedCampaigns, setAppliedCampaigns] = useState<string[]>([])
   const [applicationData, setApplicationData] = useState({
     pitch: '',
     proposed_rate: 0
@@ -21,8 +25,37 @@ export default function AvailableCampaigns() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    loadAvailableCampaigns()
-  }, [])
+    // Redirect if user is a brand
+    if (user && user.user_metadata?.role === 'brand') {
+      toast.error('This page is only for influencers')
+      router.push('/dashboard')
+      return
+    }
+
+    if (user) {
+      loadAvailableCampaigns()
+      loadUserApplications()
+    }
+  }, [user])
+
+  const loadUserApplications = async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('campaign_applications')
+        .select('campaign_id')
+        .eq('influencer_id', user.id)
+      
+      if (error) throw error
+      
+      // Extract just the campaign IDs into an array
+      const appliedIds = data?.map(app => app.campaign_id) || []
+      setAppliedCampaigns(appliedIds)
+    } catch (error) {
+      console.error('Error loading user applications:', error)
+    }
+  }
 
   const loadAvailableCampaigns = async () => {
     try {
@@ -44,6 +77,7 @@ export default function AvailableCampaigns() {
   }
 
   const handleApply = async (e: React.FormEvent) => {
+    console.log('handleApply')
     e.preventDefault()
     if (!user?.id || !selectedCampaign) return
 
@@ -51,6 +85,7 @@ export default function AvailableCampaigns() {
       const { error } = await supabase.from('campaign_applications').insert({
         campaign_id: selectedCampaign.id,
         influencer_id: user.id,
+        brand_id: selectedCampaign.brand_id,
         status: 'pending',
         pitch: applicationData.pitch,
         proposed_rate: applicationData.proposed_rate
@@ -58,6 +93,9 @@ export default function AvailableCampaigns() {
 
       if (error) throw error
 
+      // Update the applied campaigns list
+      setAppliedCampaigns([...appliedCampaigns, selectedCampaign.id])
+      
       toast.success('Application submitted successfully')
       setShowApplyModal(false)
       setApplicationData({ pitch: '', proposed_rate: 0 })
@@ -70,6 +108,16 @@ export default function AvailableCampaigns() {
 
   if (loading) {
     return <div>Loading...</div>
+  }
+
+  // Show message if user is not an influencer
+  if (user && user.user_metadata?.role !== 'influencer') {
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-lg font-medium text-gray-900">Access Restricted</h3>
+        <p className="mt-1 text-sm text-gray-500">This page is only available to influencers.</p>
+      </div>
+    )
   }
 
   return (
@@ -124,18 +172,32 @@ export default function AvailableCampaigns() {
                   ))}
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setSelectedCampaign(campaign)
-                  setShowApplyModal(true)
-                }}
-                className="mt-4 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              >
-                Apply Now
-              </button>
+              {appliedCampaigns.includes(campaign.id) ? (
+                <button
+                  disabled
+                  className="mt-4 w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm cursor-default"
+                >
+                  Applied
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setSelectedCampaign(campaign)
+                    setShowApplyModal(true)
+                  }}
+                  className="mt-4 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                >
+                  Apply Now
+                </button>
+              )}
             </div>
           </div>
         ))}
+        {campaigns.length === 0 && (
+          <div className="col-span-3 text-center py-12">
+            <p className="text-gray-500">No active campaigns available at the moment.</p>
+          </div>
+        )}
       </div>
 
       {/* Apply Modal */}
@@ -208,7 +270,7 @@ export default function AvailableCampaigns() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700"
+                    className="px-4 py-2 text-sm cursor-pointer font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700p "
                   >
                     Submit Application
                   </button>
@@ -220,4 +282,4 @@ export default function AvailableCampaigns() {
       )}
     </div>
   )
-} 
+}

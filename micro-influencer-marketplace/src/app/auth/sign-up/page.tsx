@@ -14,7 +14,6 @@ export default function SignUp() {
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'brand' | 'influencer'>('brand')
   const [loading, setLoading] = useState(false)
-  const [verificationSent, setVerificationSent] = useState(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -29,16 +28,15 @@ export default function SignUp() {
         options: {
           data: {
             role,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          }
         },
       })
 
       if (error) throw error
 
       if (data?.user) {
-        setVerificationSent(true)
-        toast.success('Please check your email for verification link')
+        toast.success('Account created successfully!')
+        router.push('/dashboard')
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred during sign up')
@@ -47,70 +45,46 @@ export default function SignUp() {
     }
   }
 
-  if (verificationSent) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="w-full max-w-md space-y-8 rounded-lg border p-6 shadow-lg">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold">Check your email</h2>
-            <p className="mt-2 text-gray-600">
-              We've sent you a verification link. Please check your email and click the link to verify your account.
-            </p>
-            <p className="mt-4 text-sm text-gray-500">
-              Didn't receive the email? Check your spam folder or{' '}
-              <button
-                onClick={handleSignUp}
-                className="text-primary hover:underline"
-                disabled={loading}
-              >
-                click here to resend
-              </button>
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-md space-y-8 rounded-lg border p-6 shadow-lg">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold">Create an account</h2>
-          <p className="mt-2 text-gray-600">Choose your role to get started</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
         </div>
-
-        <form onSubmit={handleSignUp} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Enter your email"
-            />
+        <form className="mt-8 space-y-6" onSubmit={handleSignUp}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email address"
+              />
+            </div>
+            <div className="mt-4">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Create a password"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>I am a</Label>
+          <div className="mt-4">
+            <Label>I am a:</Label>
             <RadioGroup
               value={role}
               onValueChange={(value) => setRole(value as 'brand' | 'influencer')}
-              className="flex space-x-4"
+              className="mt-2"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="brand" id="brand" />
@@ -123,16 +97,15 @@ export default function SignUp() {
             </RadioGroup>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create account'}
-          </Button>
-
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{' '}
-            <a href="/auth/sign-in" className="text-primary hover:underline">
-              Sign in
-            </a>
-          </p>
+          <div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? 'Creating account...' : 'Sign up'}
+            </Button>
+          </div>
         </form>
       </div>
     </div>

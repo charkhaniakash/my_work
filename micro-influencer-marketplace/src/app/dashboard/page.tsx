@@ -75,13 +75,14 @@ export default function Dashboard() {
         })
       })
 
+      console.log("campaigns", campaigns)
       // Format applications
       applications?.forEach(application => {
         activities.push({
           id: `application-${application.id}`,
           title: user.user_metadata?.role === 'brand'
-            ? `New application received for "${application.campaign.title}"`
-            : `Your application for "${application.campaign.title}" is ${application.status}`,
+            ? `New application received for "${application?.campaign?.title}"`
+            : `Your application for "${application?.campaign?.title}" is ${application.status}`,
           description: application.pitch || 'No pitch provided',
           created_at: application.created_at,
           type: 'application'

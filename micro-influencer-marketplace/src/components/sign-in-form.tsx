@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSupabase } from '@/lib/providers/supabase-provider'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { toast } from 'react-hot-toast'
 
 export function SignInForm() {
   const router = useRouter()
-  const { signIn } = useSupabase()
+  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -20,57 +21,60 @@ export function SignInForm() {
     setError(null)
 
     try {
-      const { data, error } = await signIn(formData.email, formData.password)
-
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      })
 
       if (error) {
         setError(error.message)
+        toast.error(error.message)
       } else if (data?.user) {
-        router.push('/dashboard')
+        toast.success('Signed in successfully!')
+        // Force a hard refresh to ensure all auth state is updated
+        window.location.href = '/dashboard'
       }
     } catch (err) {
       setError('An unexpected error occurred')
+      toast.error('An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="p-3 bg-red-100 text-red-700 rounded-md">
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
           {error}
         </div>
       )}
-      
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700">
           Email
         </label>
         <input
-          type="email"
           id="email"
+          type="email"
           required
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
         />
       </div>
-
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-gray-700">
           Password
         </label>
         <input
-          type="password"
           id="password"
+          type="password"
           required
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
         />
       </div>
-
       <button
         type="submit"
         disabled={isLoading}
