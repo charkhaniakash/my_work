@@ -8,6 +8,7 @@ import { Send, Users, Building2, UserPlus, Plus, Search } from 'lucide-react'
 import NewConversation from '@/components/NewConversation'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { User as DBUser } from '@/lib/types/database'
+import { createMessageNotification } from '@/lib/services/notification-service'
 
 type User = DBUser;
 
@@ -162,15 +163,26 @@ export default function Messages() {
     if (!selectedContact || !newMessage.trim() || !user) return
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .insert({
           sender_id: user.id,
           receiver_id: selectedContact.id,
           content: newMessage.trim()
-      })
+        })
+        .select()
+        .single()
 
       if (error) throw error
+      
+      // Create notification for message recipient
+      await createMessageNotification(
+        selectedContact.id,
+        user.user_metadata?.full_name || user.email,
+        newMessage.trim(),
+        data.id
+      )
+      
       setNewMessage('')
     } catch (error) {
       console.error('Error sending message:', error)

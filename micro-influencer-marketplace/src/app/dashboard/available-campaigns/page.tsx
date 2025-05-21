@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast'
 import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { useRouter } from 'next/navigation'
+import { createApplicationNotification, createCampaignApplicationNotification } from '@/lib/services/notification-service'
 
 export default function AvailableCampaigns() {
   const { user } = useSupabase()
@@ -25,12 +26,6 @@ export default function AvailableCampaigns() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    // Redirect if user is a brand
-    if (user && user.user_metadata?.role === 'brand') {
-      toast.error('This page is only for influencers')
-      router.push('/dashboard')
-      return
-    }
 
     if (user) {
       loadAvailableCampaigns()
@@ -82,19 +77,27 @@ export default function AvailableCampaigns() {
     if (!user?.id || !selectedCampaign) return
 
     try {
-      const { error } = await supabase.from('campaign_applications').insert({
+      const { error, data } = await supabase.from('campaign_applications').insert({
         campaign_id: selectedCampaign.id,
         influencer_id: user.id,
         brand_id: selectedCampaign.brand_id,
         status: 'pending',
         pitch: applicationData.pitch,
         proposed_rate: applicationData.proposed_rate
-      })
+      }).select().single()
 
       if (error) throw error
 
       // Update the applied campaigns list
       setAppliedCampaigns([...appliedCampaigns, selectedCampaign.id])
+      
+      // Create notification for the brand only
+      await createCampaignApplicationNotification(
+        selectedCampaign.brand_id,
+        user.user_metadata?.full_name || user.email,
+        selectedCampaign.title,
+        data.id
+      )
       
       toast.success('Application submitted successfully')
       setShowApplyModal(false)

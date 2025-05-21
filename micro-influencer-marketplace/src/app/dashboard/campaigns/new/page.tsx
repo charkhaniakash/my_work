@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast'
 import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
 import { CampaignTemplate } from '@/lib/types/database'
 import { useSupabase } from '@/lib/providers/supabase-provider'
+import { createCampaignNotification } from '@/lib/services/notification-service'
 
 const NICHE_OPTIONS = [
   'Fashion',
@@ -83,6 +84,36 @@ export default function NewCampaign() {
         .single()
 
       if (error) throw error
+
+      // Notify all influencers about the new campaign
+      if (campaignStatus === 'active') {
+        try {
+          // Get all influencers
+          const { data: influencers, error: influencersError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', 'influencer')
+
+          if (influencersError) throw influencersError
+
+          // Send notification to each influencer
+          const brandName = user.user_metadata?.full_name || user.email || 'A brand'
+          
+          await Promise.all(
+            influencers.map(influencer => 
+              createCampaignNotification(
+                influencer.id,
+                data.title,
+                brandName,
+                data.id
+              )
+            )
+          )
+        } catch (notificationError) {
+          console.error('Error sending notifications:', notificationError)
+          // Don't fail the campaign creation if notifications fail
+        }
+      }
 
       toast.success(`Campaign ${campaignStatus === 'scheduled' ? 'scheduled' : 'created'} successfully`)
       router.push(`/dashboard/campaigns/${data.id}`)

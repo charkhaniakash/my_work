@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import NotificationsDropdown from '@/components/NotificationsDropdown'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -110,6 +111,20 @@ export default function DashboardLayout({
 
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col flex-1">
+        {/* Header with notifications */}
+        <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 items-center bg-white shadow-sm">
+          <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
+            <div></div> {/* Empty div for layout balance */}
+            <div className="flex items-center space-x-4">
+              <NotificationsDropdown />
+              <div className="lg:hidden flex items-center">
+                <span className="text-sm font-medium text-gray-700">
+                  {user?.full_name || user?.email || 'User'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </header>
         <main className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
           {children}
         </main>

@@ -18,6 +18,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { has } from 'lodash'
+import { createApplicationNotification } from '@/lib/services/notification-service'
 
 type ApplicationWithInfluencer = CampaignApplication & { influencer: { full_name: string } }
 
@@ -143,6 +144,16 @@ export default function CampaignDetail() {
 
   const handleApplicationStatus = async (applicationId: string, newStatus: 'accepted' | 'rejected') => {
     try {
+      // Get the application details first to access the influencer ID
+      const { data: applicationData, error: fetchError } = await supabase
+        .from('campaign_applications')
+        .select('*')
+        .eq('id', applicationId)
+        .single()
+      
+      if (fetchError) throw fetchError
+      
+      // Update application status
       const { error } = await supabase
         .from('campaign_applications')
         .update({ status: newStatus })
@@ -150,11 +161,20 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
+      // Update UI state
       setApplications(applications.map(app =>
         app.id === applicationId
           ? { ...app, status: newStatus }
           : app
       ))
+      
+      // Create notification for the influencer
+      await createApplicationNotification(
+        applicationData.influencer_id,
+        campaign?.title || 'Campaign',
+        newStatus,
+        applicationId
+      )
 
       toast.success(`Application ${newStatus}`)
     } catch (error) {
@@ -416,8 +436,6 @@ export default function CampaignDetail() {
           </div>
         </div>
       </div>
-
-
 
       {!userLoading && hasApplied && (
         <div className="bg-green-100 border border-green-400 text-green-800 shadow sm:rounded-lg p-6 my-6">
