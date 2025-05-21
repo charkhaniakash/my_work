@@ -39,6 +39,31 @@ export async function POST(request: Request) {
       )
     }
     
+    // Check notification preferences for user before creating notification
+    if (['message', 'application', 'campaign'].includes(notificationData.type)) {
+      const preferenceType = notificationData.type === 'message' ? 'messages' : 
+                             notificationData.type === 'application' ? 'applications' : 'campaigns';
+      
+      // Get all user preferences
+      const { data: prefsData, error: prefsError } = await supabaseAdmin
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', notificationData.user_id)
+        .single();
+      
+      // If preferences exist and the specific type is disabled, skip notification
+      if (!prefsError && prefsData) {
+        // Check if the specific notification type is disabled
+        const isEnabled = prefsData[preferenceType];
+        if (isEnabled === false) {
+          return NextResponse.json({
+            message: `Notification of type ${notificationData.type} is disabled for user`,
+            skipped: true
+          });
+        }
+      }
+    }
+    
     // Create notification with service role client (bypasses RLS)
     const { data, error } = await supabaseAdmin
       .from('notifications')

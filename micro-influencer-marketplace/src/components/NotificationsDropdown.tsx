@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { Bell, Check, X, AlertCircle, MessageSquare, FileText, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { getNotificationPreferences } from '@/lib/services/notification-preferences-service'
 
 type Notification = {
   id: string
@@ -26,7 +27,48 @@ export default function NotificationsDropdown() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [soundEnabled, setSoundEnabled] = useState(true)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Load user preferences
+  useEffect(() => {
+    if (!user) return
+    
+    const loadPreferences = async () => {
+      try {
+        const preferences = await getNotificationPreferences(user.id)
+        setSoundEnabled(preferences.sound_enabled)
+      } catch (error) {
+        console.error('Error loading sound preferences:', error)
+      }
+    }
+    
+    loadPreferences()
+    
+    // Set up a listener for preference changes
+    const prefChannel = supabase
+      .channel('prefs-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notification_preferences',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          // Update sound preference if it changed
+          if (payload.new && typeof payload.new.sound_enabled === 'boolean') {
+            setSoundEnabled(payload.new.sound_enabled)
+          }
+        }
+      )
+      .subscribe()
+      
+    return () => {
+      supabase.removeChannel(prefChannel)
+    }
+  }, [user])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -58,18 +100,28 @@ export default function NotificationsDropdown() {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         },
-        (payload) => {
+        async (payload) => {
           const newNotification = payload.new as Notification
           setNotifications(prev => [newNotification, ...prev])
           setUnreadCount(prev => prev + 1)
           
-          // Play notification sound
-          const audio = new Audio('/sounds/notification.mp3')
-          audio.volume = 0.5
+          // Check current sound preference before playing sound
           try {
-            audio.play()
+            // Get the latest sound preference just to be sure
+            const prefs = await getNotificationPreferences(user.id)
+            
+            // Play notification sound if enabled
+            if (prefs.sound_enabled) {
+              const audio = new Audio('/sounds/notification.mp3')
+              audio.volume = 0.5
+              try {
+                audio.play()
+              } catch (error) {
+                console.error('Failed to play notification sound:', error)
+              }
+            }
           } catch (error) {
-            console.error('Failed to play notification sound:', error)
+            console.error('Failed to check sound preferences:', error)
           }
         }
       )
@@ -270,8 +322,14 @@ export default function NotificationsDropdown() {
           
           <div className="py-2 border-t px-4">
             <button
+              onClick={() => router.push('/dashboard/notifications')}
+              className="block w-full text-left text-sm text-indigo-600 hover:text-indigo-800 font-medium p-2"
+            >
+              View All Notifications
+            </button>
+            <button
               onClick={() => setIsOpen(false)}
-              className="text-xs text-gray-500 hover:text-gray-700 w-full text-center"
+              className="block w-full text-center text-xs text-gray-500 hover:text-gray-700 p-1 mt-2"
             >
               Close
             </button>

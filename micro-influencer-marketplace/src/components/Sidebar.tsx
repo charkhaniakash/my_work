@@ -7,21 +7,59 @@ import {
   ClipboardIcon,
   PlusCircleIcon,
   InboxIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  BellIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useConversations } from '@/lib/hooks/useConversations'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function Sidebar() {
   const { user } = useAuth()
   const pathname = usePathname()
   const { getUnreadCount } = useConversations()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     if (user?.id) {
       loadUnreadCount()
+      loadUnreadNotifications()
+      
+      // Subscribe to new notifications
+      const channel = supabase
+        .channel('sidebar-notification-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id} AND is_read=eq.false`
+          },
+          () => {
+            loadUnreadNotifications()
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            loadUnreadNotifications()
+          }
+        )
+        .subscribe()
+      
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [user?.id])
 
@@ -31,6 +69,24 @@ export default function Sidebar() {
       setUnreadCount(count)
     } catch (error) {
       console.error('Error loading unread count:', error)
+    }
+  }
+  
+  const loadUnreadNotifications = async () => {
+    if (!user?.id) return
+    
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false)
+      
+      if (error) throw error
+      
+      setUnreadNotifications(count || 0)
+    } catch (error) {
+      console.error('Error loading unread notifications count:', error)
     }
   }
 
@@ -71,6 +127,12 @@ export default function Sidebar() {
       href: '/dashboard/messages',
       icon: ChatBubbleLeftRightIcon,
       badge: unreadCount > 0 ? unreadCount : undefined
+    },
+    {
+      name: 'Notifications',
+      href: '/dashboard/notifications',
+      icon: BellIcon,
+      badge: unreadNotifications > 0 ? unreadNotifications : undefined
     },
     { name: 'Profile', href: '/dashboard/profile', icon: UserIcon }
   ]

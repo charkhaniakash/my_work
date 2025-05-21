@@ -4,8 +4,13 @@ import React, { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { User, BrandProfile, InfluencerProfile } from '@/lib/types/database'
-import { Camera, Save } from 'lucide-react'
+import { Camera, Save, Bell } from 'lucide-react'
 import { useSupabase } from '@/lib/providers/supabase-provider'
+import { 
+  getNotificationPreferences, 
+  updateNotificationPreferences,
+  NotificationPreferences 
+} from '@/lib/services/notification-preferences-service'
 
 type Profile = BrandProfile | InfluencerProfile
 
@@ -36,11 +41,19 @@ export default function Settings() {
     content_types: '',
     rate_card: ''
   })
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    campaigns: true,
+    applications: true,
+    messages: true,
+    sound_enabled: true,
+    email_notifications: false
+  })
   const supabase = createClientComponentClient()
 
   useEffect(() => {
     if (!userLoading && user) {
       loadProfile()
+      loadNotificationPreferences()
     }
   }, [userLoading, user])
 
@@ -82,9 +95,28 @@ export default function Settings() {
     }
   }
 
+  // Load notification preferences
+  const loadNotificationPreferences = async () => {
+    if (!user) return
+    try {
+      const prefs = await getNotificationPreferences(user.id)
+      setNotificationPrefs(prefs)
+    } catch (error) {
+      console.error('Error loading notification preferences:', error)
+    }
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  // Handle toggle change for notification preferences
+  const handleToggleChange = (field: keyof NotificationPreferences) => {
+    setNotificationPrefs(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,6 +165,16 @@ export default function Settings() {
         .eq('user_id', user.id)
 
       if (profileError) throw profileError
+
+      // Update notification preferences
+      const { success, error: prefsError } = await updateNotificationPreferences(
+        user.id,
+        notificationPrefs
+      )
+
+      if (prefsError) {
+        console.error('Error updating notification preferences:', prefsError)
+      }
 
       toast.success('Profile updated successfully')
     } catch (error) {
@@ -480,6 +522,151 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+        {/* Additional section for notification preferences */}
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="p-6">
+            <h3 className="text-lg font-medium leading-6 text-gray-900 flex items-center">
+              <Bell className="h-5 w-5 mr-2 text-gray-500" />
+              Notification Preferences
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Control how you receive notifications
+            </p>
+            
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Campaign Notifications</h4>
+                  <p className="text-sm text-gray-500">Get notified about new campaigns</p>
+                </div>
+                <button
+                  type="button"
+                  className={`${
+                    notificationPrefs.campaigns
+                      ? 'bg-indigo-600'
+                      : 'bg-gray-200'
+                  } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
+                  onClick={() => handleToggleChange('campaigns')}
+                >
+                  <span className="sr-only">Use setting</span>
+                  <span
+                    aria-hidden="true"
+                    className={`${
+                      notificationPrefs.campaigns
+                        ? 'translate-x-5'
+                        : 'translate-x-0'
+                    } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                  />
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Application Notifications</h4>
+                  <p className="text-sm text-gray-500">Get notified about campaign applications</p>
+                </div>
+                <button
+                  type="button"
+                  className={`${
+                    notificationPrefs.applications
+                      ? 'bg-indigo-600'
+                      : 'bg-gray-200'
+                  } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
+                  onClick={() => handleToggleChange('applications')}
+                >
+                  <span className="sr-only">Use setting</span>
+                  <span
+                    aria-hidden="true"
+                    className={`${
+                      notificationPrefs.applications
+                        ? 'translate-x-5'
+                        : 'translate-x-0'
+                    } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                  />
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Message Notifications</h4>
+                  <p className="text-sm text-gray-500">Get notified about new messages</p>
+                </div>
+                <button
+                  type="button"
+                  className={`${
+                    notificationPrefs.messages
+                      ? 'bg-indigo-600'
+                      : 'bg-gray-200'
+                  } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
+                  onClick={() => handleToggleChange('messages')}
+                >
+                  <span className="sr-only">Use setting</span>
+                  <span
+                    aria-hidden="true"
+                    className={`${
+                      notificationPrefs.messages
+                        ? 'translate-x-5'
+                        : 'translate-x-0'
+                    } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                  />
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Sound Notifications</h4>
+                  <p className="text-sm text-gray-500">Play sound when receiving notifications</p>
+                </div>
+                <button
+                  type="button"
+                  className={`${
+                    notificationPrefs.sound_enabled
+                      ? 'bg-indigo-600'
+                      : 'bg-gray-200'
+                  } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
+                  onClick={() => handleToggleChange('sound_enabled')}
+                >
+                  <span className="sr-only">Use setting</span>
+                  <span
+                    aria-hidden="true"
+                    className={`${
+                      notificationPrefs.sound_enabled
+                        ? 'translate-x-5'
+                        : 'translate-x-0'
+                    } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                  />
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Email Notifications</h4>
+                  <p className="text-sm text-gray-500">Receive important notifications via email</p>
+                </div>
+                <button
+                  type="button"
+                  className={`${
+                    notificationPrefs.email_notifications
+                      ? 'bg-indigo-600'
+                      : 'bg-gray-200'
+                  } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
+                  onClick={() => handleToggleChange('email_notifications')}
+                >
+                  <span className="sr-only">Use setting</span>
+                  <span
+                    aria-hidden="true"
+                    className={`${
+                      notificationPrefs.email_notifications
+                        ? 'translate-x-5'
+                        : 'translate-x-0'
+                    } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="flex justify-end">
           <button

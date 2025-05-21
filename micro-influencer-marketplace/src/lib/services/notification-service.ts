@@ -1,4 +1,5 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { getNotificationPreferences } from './notification-preferences-service'
 
 // For client-side operations (limited by RLS)
 const supabase = createClientComponentClient()
@@ -25,6 +26,21 @@ export const createNotification = async ({
   relatedType
 }: CreateNotificationParams) => {
   try {
+    // Check user preferences before sending notification
+    if (type === 'message' || type === 'application' || type === 'campaign') {
+      // Get all preferences directly instead of using shouldSendNotification helper
+      const preferences = await getNotificationPreferences(userId);
+      
+      const preferenceType = type === 'message' ? 'messages' : 
+                            type === 'application' ? 'applications' : 'campaigns';
+      
+      // Check if the specific notification type is enabled
+      if (!preferences[preferenceType]) {
+        console.log(`Notification of type ${type} disabled by user preferences for ${userId}`);
+        return { data: null, error: null, skipped: true };
+      }
+    }
+    
     // Create the notification data object
     const notificationData = {
       user_id: userId,
