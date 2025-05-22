@@ -88,7 +88,7 @@ export default function DashboardLayout({
           <div className="fixed inset-0 z-40 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)}>
             <div className="fixed inset-y-0 left-0 w-64 bg-white" onClick={e => e.stopPropagation()}>
               <SidebarContent 
-                pathname={pathname} 
+                pathname={pathname || ''}
                 onLogout={handleLogout} 
                 user={user}
                 isLoading={isLoading}
@@ -102,7 +102,7 @@ export default function DashboardLayout({
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
           <SidebarContent 
-            pathname={pathname} 
+            pathname={pathname || ''}
             onLogout={handleLogout}
             user={user}
             isLoading={isLoading}

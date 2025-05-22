@@ -2,8 +2,12 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useVisibilityChange } from '@/lib/hooks/useVisibilityChange'
 
 export default function Home() {
+  // Use the visibility change hook to prevent reload on tab switch
+  useVisibilityChange();
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-24">
       <h1 className="text-4xl font-bold mb-4">

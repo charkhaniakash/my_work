@@ -1,15 +1,40 @@
+// app/auth/sign-in/page.tsx
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { useSupabase } from '@/lib/providers/supabase-provider'
+import { useAuth } from '@/lib/auth-context'
 import { SignInForm } from '@/components/sign-in-form'
 
 export default function SignInPage() {
   const router = useRouter()
-  const { user } = useSupabase()
+  const { user, loading } = useAuth()
+  const [shouldRender, setShouldRender] = useState(false)
+
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        // User is authenticated, redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        // User is not authenticated, show the sign-in form
+        setShouldRender(true)
+      }
+    }
+  }, [user, loading, router])
+
+  // Show loading spinner while checking auth state
+  if (loading || !shouldRender) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <p className="text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -29,4 +54,4 @@ export default function SignInPage() {
       </div>
     </div>
   )
-} 
+}

@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
       
       if (role) {
         try {
-          const { error } = await supabase
-            .from('users')
+    const { error } = await supabase
+      .from('users')
             .update({
               role,
               updated_at: new Date().toISOString()
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
             .eq('id', id);
             
           if (error) throw error;
-        } catch (error) {
+  } catch (error) {
           console.error('Error updating user in Supabase:', error);
           // Continue processing - don't fail the webhook
         }

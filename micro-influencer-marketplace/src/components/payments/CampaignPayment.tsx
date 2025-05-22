@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import PaymentForm from './PaymentForm';
+import { toast } from 'react-hot-toast';
 
 interface Campaign {
   id: string;
@@ -12,6 +13,10 @@ interface Campaign {
 interface Influencer {
   id: string;
   full_name: string;
+  email?: string;
+  role?: string;
+  avatar_url?: string;
+  is_verified?: boolean;
 }
 
 interface CampaignPaymentProps {
@@ -40,31 +45,53 @@ const CampaignPayment: React.FC<CampaignPaymentProps> = ({
     const fetchData = async () => {
       try {
         setLoading(true);
+        
         // Fetch campaign details
         const campaignRes = await fetch(`/api/campaigns/${campaignId}`);
         if (!campaignRes.ok) {
-          throw new Error('Failed to fetch campaign details');
+          const campaignError = await campaignRes.json();
+          throw new Error(campaignError.message || 'Failed to fetch campaign details');
         }
         const campaignData = await campaignRes.json();
         setCampaign(campaignData);
 
         // Fetch influencer details
+        console.log(`Fetching influencer data for ID: ${influencerId}`);
         const influencerRes = await fetch(`/api/users/${influencerId}`);
+        
         if (!influencerRes.ok) {
-          throw new Error('Failed to fetch influencer details');
+          const influencerError = await influencerRes.json();
+          console.error('Error fetching influencer:', influencerError);
+          throw new Error(influencerError.message || 'Failed to fetch influencer details');
         }
+        
         const influencerData = await influencerRes.json();
-        setInfluencer(influencerData);
-
+        console.log('Influencer data received:', influencerData);
+        
+        // Handle case where data structure might vary
+        const processedInfluencerData = {
+          id: influencerData.id,
+          // Use full_name if available, otherwise fallback to email or a default
+          full_name: influencerData.full_name || influencerData.email || 'Influencer'
+        };
+        
+        setInfluencer(processedInfluencerData);
         setError(null);
       } catch (err: any) {
+        console.error('Payment data fetch error:', err);
         setError(err.message || 'Failed to load data');
+        toast.error(err.message || 'Failed to load payment information');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    if (campaignId && influencerId) {
+      fetchData();
+    } else {
+      setError('Missing campaign or influencer information');
+      setLoading(false);
+    }
   }, [campaignId, influencerId]);
 
   const handlePaymentSuccess = () => {
@@ -93,7 +120,7 @@ const CampaignPayment: React.FC<CampaignPaymentProps> = ({
   if (error || !campaign || !influencer || !user) {
     return (
       <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-4">
-        {error || 'Failed to load payment information'}
+        {error || 'Failed to load payment information. Please try again later.'}
       </div>
     );
   }

@@ -217,24 +217,24 @@ export default function Dashboard() {
               {activities.length === 0 ? (
                 <p className="text-sm text-gray-500">No recent activity</p>
               ) : (
-                <ul role="list" className="-my-5 divide-y divide-gray-200">
+              <ul role="list" className="-my-5 divide-y divide-gray-200">
                   {activities.map((activity) => (
                     <li key={activity.id} className="py-5">
-                      <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
-                        <h3 className="text-sm font-semibold text-gray-800">
-                          <span className="absolute inset-0" aria-hidden="true" />
+                  <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
+                    <h3 className="text-sm font-semibold text-gray-800">
+                      <span className="absolute inset-0" aria-hidden="true" />
                           {activity.title}
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">
                           {activity.description}
                         </p>
                         <p className="mt-1 text-xs text-gray-400">
                           {new Date(activity.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </li>
+                    </p>
+                  </div>
+                </li>
                   ))}
-                </ul>
+              </ul>
               )}
             </div>
           </div>

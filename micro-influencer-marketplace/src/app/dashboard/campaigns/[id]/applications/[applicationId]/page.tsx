@@ -7,7 +7,13 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, CheckCircle, XCircle, MessageSquare, Banknote } from 'lucide-react';
 import Link from 'next/link';
-import CampaignPayment from '@/components/payments/CampaignPayment';
+import dynamic from 'next/dynamic';
+
+// Use dynamic import with SSR disabled for CampaignPayment to avoid NextRouter mounting issues
+const CampaignPayment = dynamic(
+  () => import('@/components/payments/CampaignPayment'),
+  { ssr: false }
+);
 
 export default function ApplicationDetail() {
   const params = useParams();
@@ -22,8 +28,10 @@ export default function ApplicationDetail() {
   const [showPayment, setShowPayment] = useState(false);
   
   useEffect(() => {
-    loadData();
-  }, [params.id, params.applicationId]);
+    if (params?.id && params.applicationId) {
+      loadData();
+    }
+  }, [params?.id, params?.applicationId]);
   
   const loadData = async () => {
     try {
@@ -33,7 +41,7 @@ export default function ApplicationDetail() {
       const { data: applicationData, error: applicationError } = await supabase
         .from('campaign_applications')
         .select('*')
-        .eq('id', params.applicationId)
+        .eq('id', params?.applicationId)
         .single();
         
       if (applicationError) throw applicationError;
@@ -45,7 +53,7 @@ export default function ApplicationDetail() {
         .select('*')
         .eq('id', applicationData.campaign_id)
         .single();
-        
+
       if (campaignError) throw campaignError;
       setCampaign(campaignData);
       
@@ -72,7 +80,7 @@ export default function ApplicationDetail() {
       const { error } = await supabase
         .from('campaign_applications')
         .update({ status: newStatus })
-        .eq('id', params.applicationId);
+        .eq('id', params?.applicationId);
         
       if (error) throw error;
       
@@ -110,7 +118,7 @@ export default function ApplicationDetail() {
         <p className="mt-1 text-sm text-gray-500">The application you're looking for doesn't exist or has been removed.</p>
         <div className="mt-6">
           <button
-            onClick={() => router.push(`/dashboard/campaigns/${params.id}/applications`)}
+            onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications`)}
             className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Back to Applications
@@ -127,7 +135,7 @@ export default function ApplicationDetail() {
     <div className="container mx-auto py-8 px-4">
       <div className="mb-6">
         <button 
-          onClick={() => router.push(`/dashboard/campaigns/${params.id}/applications`)}
+          onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications`)}
           className="flex items-center text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
@@ -284,4 +292,4 @@ export default function ApplicationDetail() {
       )}
     </div>
   );
-} 
+}

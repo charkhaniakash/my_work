@@ -226,7 +226,7 @@ export default function Messages() {
         .limit(20)
 
       if (error) throw error
-      
+
       // Filter out existing contacts
       const filteredUsers = (users || []).filter(u => 
         !contacts.some(c => c.id === u.id)

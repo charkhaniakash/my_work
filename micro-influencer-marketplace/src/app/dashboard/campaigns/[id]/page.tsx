@@ -43,7 +43,7 @@ export default function CampaignDetail() {
   useEffect(() => {
     console.log('User state:', { user, userLoading })
     if (params.id) {
-      loadCampaign()
+    loadCampaign()
       loadApplications()
     }
   }, [params.id, user, userLoading])
@@ -176,7 +176,7 @@ export default function CampaignDetail() {
         applicationId
       )
 
-      toast.success(`Application ${newStatus}`)
+        toast.success(`Application ${newStatus}`)
     } catch (error) {
       console.error('Error updating application status:', error)
       toast.error('Failed to update application status')
@@ -365,10 +365,10 @@ export default function CampaignDetail() {
               </div>
             )}
             {campaign.target_location && (
-              <div className="mt-2 flex items-center text-sm text-gray-500">
-                <MapPin className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
+            <div className="mt-2 flex items-center text-sm text-gray-500">
+              <MapPin className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
                 {campaign.target_location}
-              </div>
+            </div>
             )}
             <div className="mt-2 flex items-center text-sm text-gray-500">
               <Tag className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
@@ -377,7 +377,7 @@ export default function CampaignDetail() {
           </div>
         </div>
         {user?.user_metadata?.role === 'brand' && (
-          <div className="mt-4 flex md:ml-4 md:mt-0">
+        <div className="mt-4 flex md:ml-4 md:mt-0">
             <button
               type="button"
               onClick={() => router.push(`/dashboard/campaigns/${campaign.id}/edit`)}
@@ -412,7 +412,7 @@ export default function CampaignDetail() {
             >
               Save as Template
             </button>
-          </div>
+        </div>
         )}
       </div>
 
@@ -425,10 +425,10 @@ export default function CampaignDetail() {
               <h4 className="text-sm font-medium text-gray-500">Description</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.description}</p>
             </div>
-            <div>
+              <div>
               <h4 className="text-sm font-medium text-gray-500">Requirements</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.requirements}</p>
-            </div>
+              </div>
             <div>
               <h4 className="text-sm font-medium text-gray-500">Deliverables</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.deliverables}</p>
@@ -499,7 +499,7 @@ export default function CampaignDetail() {
       {/* Applications */}
       {user?.user_metadata?.role === 'brand' && (
         <div className="bg-white shadow sm:rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
+        <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold leading-6 text-gray-900">Applications</h3>
               <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
@@ -508,10 +508,10 @@ export default function CampaignDetail() {
             </div>
             <div className="mt-6 flow-root">
               <ul role="list" className="-my-5 divide-y divide-gray-200">
-                {applications.map((application) => (
+            {applications.map((application) => (
                   <li key={application.id} className="py-5">
                     <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
-                      <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {/* Influencer avatar and name */}
                           {(application.influencer && 'profile_image' in application.influencer && (application.influencer as any).profile_image) ? (
@@ -525,7 +525,7 @@ export default function CampaignDetail() {
                               <Users className="h-6 w-6" />
                             </div>
                           )}
-                          <div>
+                  <div>
                             <a
                               href={`/dashboard/profile/${application.influencer_id}`}
                               className="text-sm font-semibold text-indigo-700 hover:underline"
@@ -540,21 +540,21 @@ export default function CampaignDetail() {
                         <div className="ml-4 flex items-center space-x-4">
                           <div className="text-sm text-gray-500">
                             ${application.proposed_rate}
-                          </div>
-                          {application.status === 'pending' && (
+                  </div>
+                    {application.status === 'pending' && (
                             <div className="flex space-x-2">
-                              <button
+                        <button
                                 onClick={() => handleApplicationStatus(application.id, 'accepted')}
                                 className="inline-flex items-center rounded-full bg-green-100 p-1 text-green-600 hover:bg-green-200"
-                              >
+                        >
                                 <CheckCircle className="h-5 w-5" />
-                              </button>
-                              <button
+                        </button>
+                        <button
                                 onClick={() => handleApplicationStatus(application.id, 'rejected')}
                                 className="inline-flex items-center rounded-full bg-red-100 p-1 text-red-600 hover:bg-red-200"
-                              >
+                        >
                                 <XCircle className="h-5 w-5" />
-                              </button>
+                        </button>
                             </div>
                           )}
                           {application.status === 'accepted' && (
@@ -567,20 +567,20 @@ export default function CampaignDetail() {
                             <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
                               <XCircle className="mr-1 h-4 w-4" />
                               Rejected
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      </span>
+                    )}
+                  </div>
+                </div>
                       <div className="mt-2 ml-14">
                         <p className="text-sm text-gray-800 line-clamp-2">{application.pitch}</p>
                       </div>
                       <p className="mt-1 text-xs text-gray-400 ml-14">
                         Applied {new Date(application.created_at).toLocaleDateString()}
                       </p>
-                    </div>
+              </div>
                   </li>
-                ))}
-                {applications.length === 0 && (
+            ))}
+            {applications.length === 0 && (
                   <li className="py-5 text-center text-gray-500">
                     No applications yet
                   </li>
