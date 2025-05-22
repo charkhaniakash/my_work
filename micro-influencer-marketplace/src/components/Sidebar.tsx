@@ -8,7 +8,9 @@ import {
   PlusCircleIcon,
   InboxIcon,
   ChatBubbleLeftRightIcon,
-  BellIcon
+  BellIcon,
+  CreditCardIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -134,7 +136,18 @@ export default function Sidebar() {
       icon: BellIcon,
       badge: unreadNotifications > 0 ? unreadNotifications : undefined
     },
-    { name: 'Profile', href: '/dashboard/profile', icon: UserIcon }
+    { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+    // Payment related links
+    {
+      name: 'Payment Methods',
+      href: '/dashboard/settings/payment-methods',
+      icon: CreditCardIcon
+    },
+    {
+      name: 'Transactions',
+      href: '/dashboard/transactions',
+      icon: BanknotesIcon
+    }
   ]
 
   return (

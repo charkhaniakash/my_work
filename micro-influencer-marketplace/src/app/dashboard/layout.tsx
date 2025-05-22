@@ -18,6 +18,7 @@ import {
 import { toast } from 'react-hot-toast'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
+import { AuthProvider } from '@/lib/auth-context'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -126,7 +127,9 @@ export default function DashboardLayout({
           </div>
         </header>
         <main className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </main>
       </div>
     </div>
