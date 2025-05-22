@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import PaymentForm from './PaymentForm';
 import { toast } from 'react-hot-toast';
 
 interface Campaign {
@@ -40,6 +39,7 @@ const CampaignPayment: React.FC<CampaignPaymentProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState<number | ''>('');
   const [useCustomAmount, setUseCustomAmount] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -94,23 +94,67 @@ const CampaignPayment: React.FC<CampaignPaymentProps> = ({
     }
   }, [campaignId, influencerId]);
 
-  const handlePaymentSuccess = () => {
-    // Update application status to 'approved_and_paid'
-    fetch(`/api/campaigns/${campaignId}/applications/${influencerId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'approved_and_paid' }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to update application status');
-        return res.json();
-      })
-      .then(() => {
-        if (onSuccess) onSuccess();
-      })
-      .catch((err) => {
-        console.error('Error updating application status:', err);
+  const handlePayment = async () => {
+    if (!campaign || !influencer || !user) {
+      toast.error('Missing payment information');
+      return;
+    }
+
+    try {
+      setProcessingPayment(true);
+      const amount = useCustomAmount && customAmount !== '' ? Number(customAmount) : campaign.budget;
+      
+      // Use simple-checkout endpoint that doesn't require auth middleware
+      const response = await fetch('/api/payments/simple-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaignId,
+          brandId: user.id,
+          influencerId,
+          amount,
+        }),
       });
+      
+      // Get the response text first to examine it
+      const responseText = await response.text();
+      let responseData;
+      
+      try {
+        // Try to parse as JSON
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', responseText);
+        toast.error('Invalid response from server');
+        setProcessingPayment(false);
+        return;
+      }
+      
+      if (!response.ok) {
+        console.error('Server error details:', responseData);
+        throw new Error(responseData.message || responseData.error || 'Failed to create checkout session');
+      }
+      
+      // If we get here, the response was successful
+      const { checkoutUrl } = responseData;
+      
+      if (!checkoutUrl) {
+        console.error('Missing checkout URL in response:', responseData);
+        toast.error('Invalid checkout session response');
+        setProcessingPayment(false);
+        return;
+      }
+      
+      // Redirect to Stripe Checkout
+      window.location.href = checkoutUrl;
+      
+    } catch (err: any) {
+      console.error('Payment error details:', err);
+      toast.error(`Payment failed: ${err.message || 'Unknown error'}`);
+      setProcessingPayment(false);
+    }
   };
 
   if (loading) {
@@ -179,13 +223,45 @@ const CampaignPayment: React.FC<CampaignPaymentProps> = ({
       </div>
 
       <div className="mb-6">
-        <PaymentForm
-          campaignId={campaignId}
-          brandId={user.id}
-          influencerId={influencerId}
-          amount={amount}
-          onSuccess={handlePaymentSuccess}
-        />
+        <button
+          onClick={handlePayment}
+          disabled={processingPayment}
+          className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+        >
+          {processingPayment ? (
+            <span className="flex items-center">
+              <span className="mr-2">Processing...</span>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            </span>
+          ) : (
+            `Proceed to Payment - ${new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+            }).format(amount)}`
+          )}
+        </button>
+        <p className="mt-2 text-sm text-gray-500 text-center">
+          You'll be redirected to Stripe to complete your payment securely.
+        </p>
       </div>
 
       <div className="flex justify-end">

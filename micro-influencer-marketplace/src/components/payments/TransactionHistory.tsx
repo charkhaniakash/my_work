@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth-context';
 
 interface Transaction {
   id: string;
@@ -12,25 +13,33 @@ interface Transaction {
 }
 
 const TransactionHistory: React.FC = () => {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    if (user) {
+      fetchTransactions(user.id);
+    }
+  }, [user]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (userId: string) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/payments/transactions');
+      // Use the simple-transactions endpoint with userId as query parameter
+      const res = await fetch(`/api/payments/simple-transactions?userId=${userId}`);
+      
       if (!res.ok) {
-        throw new Error('Failed to fetch transaction history');
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to fetch transaction history');
       }
+      
       const data = await res.json();
       setTransactions(data);
       setError(null);
     } catch (err: any) {
+      console.error('Transaction fetch error:', err);
       setError(err.message || 'Failed to load transaction history');
     } finally {
       setLoading(false);

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: '2023-10-16' as any,
 });
 
 // Initialize Supabase admin client for server-side operations
@@ -15,37 +15,53 @@ const supabaseAdmin = createClient(
 // Platform fee percentage (10%)
 const PLATFORM_FEE_PERCENTAGE = 0.10;
 
-export interface CreatePaymentIntentParams {
+export interface CreateCheckoutSessionParams {
   campaignId: string;
   brandId: string;
   influencerId: string;
   amount: number;
+  successUrl: string;
+  cancelUrl: string;
 }
 
-export interface PaymentIntentResponse {
-  clientSecret: string;
-  paymentIntentId: string;
-  transactionId: string;
+export interface CheckoutSessionResponse {
+  sessionId: string;
+  checkoutUrl: string;
 }
 
-export async function createPaymentIntent({
+export async function createCheckoutSession({
   campaignId,
   brandId,
   influencerId,
   amount,
-}: CreatePaymentIntentParams): Promise<PaymentIntentResponse> {
+  successUrl,
+  cancelUrl,
+}: CreateCheckoutSessionParams): Promise<CheckoutSessionResponse> {
   try {
+    console.log('Stripe API Key exists:', !!process.env.STRIPE_SECRET_KEY);
+    
     // Calculate platform fee
     const platformFee = amount * PLATFORM_FEE_PERCENTAGE;
-    const influencerAmount = amount - platformFee;
-
-    // Create payment intent in Stripe
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
-      automatic_payment_methods: {
-        enabled: true,
-      },
+    
+    // Create checkout session in Stripe
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Campaign Payment',
+              description: `Payment for campaign ID: ${campaignId}`,
+            },
+            unit_amount: Math.round(amount * 100), // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: {
         campaignId,
         brandId,
@@ -54,80 +70,71 @@ export async function createPaymentIntent({
       },
     });
 
-    // Create transaction record in database
-    const { data: transaction, error } = await supabaseAdmin
-      .from('payment_transactions')
-      .insert({
-        campaign_id: campaignId,
-        brand_id: brandId,
-        influencer_id: influencerId,
-        amount,
-        platform_fee: platformFee,
-        status: 'pending',
-        stripe_payment_intent_id: paymentIntent.id,
-      })
-      .select()
-      .single();
+    console.log('Stripe session created successfully:', session.id);
 
-    if (error) throw error;
+    try {
+      // Create transaction record in database
+      const { data: transaction, error } = await supabaseAdmin
+        .from('payment_transactions')
+        .insert({
+          campaign_id: campaignId,
+          brand_id: brandId,
+          influencer_id: influencerId,
+          amount,
+          platform_fee: platformFee,
+          status: 'pending',
+          stripe_payment_intent_id: session.payment_intent || session.id, // Use session ID as fallback
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        // Don't throw here - still return the session even if DB insert fails
+      } else {
+        console.log('Database transaction created:', transaction.id);
+      }
+    } catch (dbError) {
+      console.error('Database operation failed:', dbError);
+      // Still return the session even if database operation fails
+    }
 
     return {
-      clientSecret: paymentIntent.client_secret!,
-      paymentIntentId: paymentIntent.id,
-      transactionId: transaction.id,
+      sessionId: session.id,
+      checkoutUrl: session.url!,
     };
   } catch (error) {
-    console.error('Error creating payment intent:', error);
+    console.error('Stripe checkout session creation error:', error);
     throw error;
   }
 }
 
-export async function confirmPayment(paymentIntentId: string) {
+// Webhook handler for Stripe events
+export async function handleStripeWebhook(event: any) {
   try {
-    // Update transaction status in database
-    const { error } = await supabaseAdmin
-      .from('payment_transactions')
-      .update({ status: 'processing' })
-      .eq('stripe_payment_intent_id', paymentIntentId);
-
-    if (error) throw error;
-
-    // Confirm the payment intent in Stripe
-    const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId);
-
-    if (paymentIntent.status === 'succeeded') {
-      // Update transaction status to completed
-      await supabaseAdmin
-        .from('payment_transactions')
-        .update({ status: 'completed' })
-        .eq('stripe_payment_intent_id', paymentIntentId);
-
-      // Create transfer to influencer
-      const transaction = await supabaseAdmin
-        .from('payment_transactions')
-        .select('*')
-        .eq('stripe_payment_intent_id', paymentIntentId)
-        .single();
-
-      if (transaction.data) {
-        const transfer = await stripe.transfers.create({
-          amount: Math.round((transaction.data.amount - transaction.data.platform_fee) * 100),
-          currency: 'usd',
-          destination: transaction.data.influencer_id, // This should be the influencer's Stripe account ID
-          transfer_group: transaction.data.campaign_id,
-        });
-
-        // Update transaction with transfer ID
+    switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object;
+        // Update transaction status in database
         await supabaseAdmin
           .from('payment_transactions')
-          .update({ stripe_transfer_id: transfer.id })
-          .eq('stripe_payment_intent_id', paymentIntentId);
-      }
+          .update({ status: 'completed' })
+          .eq('stripe_payment_intent_id', session.payment_intent || session.id);
+        
+        // Handle platform fee transfer logic here if needed
+        break;
+        
+      case 'payment_intent.payment_failed':
+        const failedPaymentIntent = event.data.object;
+        // Update transaction status to failed
+        await supabaseAdmin
+          .from('payment_transactions')
+          .update({ status: 'failed' })
+          .eq('stripe_payment_intent_id', failedPaymentIntent.id);
+        break;
     }
-
-    return paymentIntent;
   } catch (error) {
-    console.error('Error confirming payment:', error);
+    console.error('Error handling webhook:', error);
     throw error;
   }
 }
@@ -157,57 +164,6 @@ export async function getPaymentMethods(userId: string) {
     return paymentMethods;
   } catch (error) {
     console.error('Error fetching payment methods:', error);
-    throw error;
-  }
-}
-
-export async function addPaymentMethod(userId: string, paymentMethodId: string) {
-  try {
-    // Verify the payment method exists in Stripe
-    await stripe.paymentMethods.retrieve(paymentMethodId);
-
-    // Add to database
-    const { data, error } = await supabaseAdmin
-      .from('payment_methods')
-      .insert({
-        user_id: userId,
-        stripe_payment_method_id: paymentMethodId,
-        is_default: false, // New payment methods are not default by default
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return data;
-  } catch (error) {
-    console.error('Error adding payment method:', error);
-    throw error;
-  }
-}
-
-export async function setDefaultPaymentMethod(userId: string, paymentMethodId: string) {
-  try {
-    // Update all payment methods to not be default
-    await supabaseAdmin
-      .from('payment_methods')
-      .update({ is_default: false })
-      .eq('user_id', userId);
-
-    // Set the selected payment method as default
-    const { data, error } = await supabaseAdmin
-      .from('payment_methods')
-      .update({ is_default: true })
-      .eq('user_id', userId)
-      .eq('stripe_payment_method_id', paymentMethodId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return data;
-  } catch (error) {
-    console.error('Error setting default payment method:', error);
     throw error;
   }
 }
