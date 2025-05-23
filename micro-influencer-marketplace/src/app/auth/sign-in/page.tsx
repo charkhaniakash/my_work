@@ -1,7 +1,7 @@
-// app/auth/sign-in/page.tsx
+// app/auth/sign-in/page.tsx - Minimal version
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
@@ -10,30 +10,18 @@ import { SignInForm } from '@/components/sign-in-form'
 export default function SignInPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [shouldRender, setShouldRender] = useState(false)
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        // User is authenticated, redirect to dashboard
-        router.push('/dashboard')
-      } else {
-        // User is not authenticated, show the sign-in form
-        setShouldRender(true)
-      }
+    // Only redirect if we're not loading and user exists
+    if (!loading && user) {
+      router.push('/dashboard')
     }
   }, [user, loading, router])
 
-  // Show loading spinner while checking auth state
-  if (loading || !shouldRender) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-          <p className="text-sm text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
+  // Always show the sign-in form unless user is authenticated
+  // Let the middleware handle redirects for better UX
+  if (!loading && user) {
+    return null // Will redirect via useEffect
   }
 
   return (

@@ -18,6 +18,8 @@ const TransactionHistory: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+
+  console.log("transactions", transactions)
   useEffect(() => {
     if (user) {
       fetchTransactions(user.id);
@@ -118,6 +120,7 @@ const TransactionHistory: React.FC = () => {
         <table className="min-w-full bg-white border border-gray-200">
           <thead>
             <tr className="bg-gray-50">
+              <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Transaction ID</th>
               <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Campaign</th>
               <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Amount</th>
               <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Fee</th>
@@ -130,6 +133,7 @@ const TransactionHistory: React.FC = () => {
           <tbody className="divide-y divide-gray-200">
             {transactions.map((transaction) => (
               <tr key={transaction.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm">{transaction.id}</td>
                 <td className="px-4 py-3 text-sm">{transaction.campaign?.title || 'Unknown Campaign'}</td>
                 <td className="px-4 py-3 text-sm font-medium">{formatAmount(transaction.amount)}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{formatAmount(transaction.platform_fee)}</td>

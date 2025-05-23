@@ -57,6 +57,13 @@ async function createSimpleCheckout(params?: any) {
       quantity: 1,
     };
 
+    // Log the metadata being passed
+    console.log('Creating checkout session with metadata:', {
+      campaignId: params?.campaignId || '',
+      brandId: params?.brandId || '',
+      influencerId: params?.influencerId || '',
+    });
+
     // Create a checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -66,11 +73,11 @@ async function createSimpleCheckout(params?: any) {
         `${protocol}://${host}/payments/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: params?.cancelUrl || 
         `${protocol}://${host}/payments/cancel`,
-      metadata: params ? {
-        campaignId: params.campaignId || '',
-        brandId: params.brandId || '',
-        influencerId: params.influencerId || '',
-      } : {},
+      metadata: {
+        campaignId: params?.campaignId || '',
+        brandId: params?.brandId || '',
+        influencerId: params?.influencerId || '',
+      },
     });
 
     // Return the checkout URL and session ID

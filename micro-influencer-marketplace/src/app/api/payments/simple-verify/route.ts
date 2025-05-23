@@ -29,7 +29,9 @@ export async function GET(req: Request) {
     console.log(`Verifying Stripe session: ${sessionId}`);
 
     // Verify the session with Stripe
-    const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
+    const stripeSession = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['line_items', 'payment_intent']
+    });
 
     if (!stripeSession) {
       console.log('Session not found');
@@ -51,7 +53,7 @@ export async function GET(req: Request) {
     console.log('Payment verified as paid');
 
     // Extract metadata
-    const { campaignId, influencerId } = stripeSession.metadata || {};
+    const { campaignId, brandId, influencerId } = stripeSession.metadata || {};
 
     if (!campaignId || !influencerId) {
       console.log('Missing metadata:', stripeSession.metadata);
@@ -59,6 +61,57 @@ export async function GET(req: Request) {
         { error: 'Missing campaign or influencer information in session metadata' },
         { status: 400 }
       );
+    }
+
+    // Get payment amount
+    let amount = 0;
+    if (stripeSession.amount_total) {
+      amount = stripeSession.amount_total / 100; // Convert from cents to dollars
+    } else if (stripeSession.line_items?.data && stripeSession.line_items.data.length > 0) {
+      // Try to get from line items
+      const lineItem = stripeSession.line_items.data[0];
+      amount = (lineItem.amount_total || 0) / 100;
+    }
+
+    // Calculate platform fee (10% of amount)
+    const platformFee = Math.round(amount * 0.1 * 100) / 100; // Round to 2 decimal places
+
+    // Extract payment intent ID
+    const paymentIntentId = typeof stripeSession.payment_intent === 'string' 
+      ? stripeSession.payment_intent 
+      : stripeSession.payment_intent?.id;
+
+    // Store transaction in the database
+    let transactionId = null;
+    let transactionError = null;
+    try {
+      const { data: transaction, error } = await supabase
+        .from('payment_transactions')
+        .insert({
+          campaign_id: campaignId,
+          brand_id: brandId,
+          influencer_id: influencerId,
+          amount: amount,
+          platform_fee: platformFee,
+          status: 'completed',
+          stripe_payment_intent_id: paymentIntentId,
+          stripe_transfer_id: null, // Will be set when funds are transferred to influencer
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Error storing transaction:', error);
+        transactionError = error;
+      } else if (transaction) {
+        transactionId = transaction.id;
+        console.log(`Transaction created with ID: ${transactionId}`);
+      }
+    } catch (error: any) {
+      console.error('Error storing transaction:', error);
+      transactionError = error;
     }
 
     let applicationUpdateStatus = true;
@@ -115,7 +168,10 @@ export async function GET(req: Request) {
       campaignId,
       influencerId,
       applicationUpdateStatus,
-      applicationUpdateError: applicationUpdateError ? applicationUpdateError.message : null
+      applicationUpdateError: applicationUpdateError ? applicationUpdateError.message : null,
+      transactionCreated: transactionId !== null,
+      transactionId,
+      transactionError: transactionError ? transactionError.message : null
     });
   } catch (error: any) {
     console.error('Error verifying checkout session:', error);

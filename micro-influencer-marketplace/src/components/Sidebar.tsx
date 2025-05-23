@@ -10,7 +10,8 @@ import {
   ChatBubbleLeftRightIcon,
   BellIcon,
   CreditCardIcon,
-  BanknotesIcon
+  BanknotesIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -24,6 +25,14 @@ export default function Sidebar() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const supabase = createClientComponentClient()
+
+  // Helper function to check user role safely
+  const hasRole = (roleToCheck: string): boolean => {
+    if (!user) return false;
+    return user?.role === roleToCheck || user?.user_metadata?.role === roleToCheck;
+  };
+
+  console.log("......" , user)
 
   useEffect(() => {
     if (user?.id) {
@@ -94,7 +103,7 @@ export default function Sidebar() {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    ...(user?.role === 'brand'
+    ...(hasRole('brand')
       ? [
           {
             name: 'My Campaigns',
@@ -143,11 +152,18 @@ export default function Sidebar() {
       href: '/dashboard/settings/payment-methods',
       icon: CreditCardIcon
     },
-    {
-      name: 'Transactions',
-      href: '/dashboard/transactions',
-      icon: BanknotesIcon
-    }
+    // Role-specific payment features
+    ...(hasRole('influencer')
+      ? [{
+          name: 'My Earnings',
+          href: '/dashboard/earnings',
+          icon: ChartBarIcon
+        }] 
+      : [{
+          name: 'Transactions',
+          href: '/dashboard/transactions',
+          icon: BanknotesIcon
+        }])
   ]
 
   return (

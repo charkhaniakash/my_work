@@ -18,6 +18,9 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 })
 
+// Initialize session loading status
+let isSessionInitialized = false
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -27,12 +30,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
+      // Skip if already initialized to prevent redundant checks
+      if (isSessionInitialized) {
+        setLoading(false)
+        return
+      }
+
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         if (error) {
           console.error('Error getting session:', error)
         }
         setUser(session?.user ?? null)
+        isSessionInitialized = true
       } catch (error) {
         console.error('Error in getInitialSession:', error)
       } finally {
@@ -45,8 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id)
-        
         setUser(session?.user ?? null)
         setLoading(false)
 

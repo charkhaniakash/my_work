@@ -13,20 +13,23 @@ import {
   Settings,
   Menu,
   X,
-  LogOut
+  LogOut,
+  CreditCard,
+  Wallet,
+  LineChart
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
 import { AuthProvider } from '@/lib/auth-context'
 
-const navigation = [
+// Base navigation items that are always shown
+const baseNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
   { name: 'Campaigns', href: '/dashboard/campaigns', icon: FileText },
   { name: 'Discover', href: '/dashboard/discover', icon: Users },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
 export default function DashboardLayout({
@@ -40,6 +43,34 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClientComponentClient()
+
+  // Helper function to check user role safely
+  const hasRole = (roleToCheck: string): boolean => {
+    if (!user) return false;
+    return user.role === roleToCheck || user.user_metadata?.role === roleToCheck;
+  };
+
+  // Dynamically generate navigation based on user role
+  const getNavigation = () => {
+    const nav = [...baseNavigation]
+    
+    // Add role-specific navigation items
+    if (user) {
+      // Add role-specific links
+      if (hasRole('influencer')) {
+        // Earnings link only for influencers
+        nav.push({ name: 'My Earnings', href: '/dashboard/earnings', icon: LineChart })
+      } else if (hasRole('brand')) {
+        // Transactions link only for brands
+        nav.push({ name: 'Transactions', href: '/dashboard/transactions', icon: Wallet })
+      }
+    }
+    
+    // Settings is always at the end
+    nav.push({ name: 'Settings', href: '/dashboard/settings', icon: Settings })
+    
+    return nav
+  }
 
   useEffect(() => {
     const getUser = async () => {
@@ -92,6 +123,7 @@ export default function DashboardLayout({
                 onLogout={handleLogout} 
                 user={user}
                 isLoading={isLoading}
+                navigation={getNavigation()}
               />
             </div>
           </div>
@@ -106,6 +138,7 @@ export default function DashboardLayout({
             onLogout={handleLogout}
             user={user}
             isLoading={isLoading}
+            navigation={getNavigation()}
           />
         </div>
       </div>
@@ -140,12 +173,14 @@ function SidebarContent({
   pathname, 
   onLogout,
   user,
-  isLoading
+  isLoading,
+  navigation
 }: { 
   pathname: string
   onLogout: () => Promise<void>
   user: any
   isLoading: boolean
+  navigation: Array<{ name: string, href: string, icon: any }>
 }) {
   return (
     <>

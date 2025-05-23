@@ -104,7 +104,7 @@ export default function PaymentSuccessPage() {
                 Return to Dashboard
               </Link>
               <Link
-                href="/payments/history"
+                href="/dashboard/transactions"
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
               >
                 View Payment History
