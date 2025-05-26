@@ -19,6 +19,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { has } from 'lodash'
 import { createApplicationNotification } from '@/lib/services/notification-service'
+import RecommendedInfluencers from '@/components/campaigns/RecommendedInfluencers'
 
 type ApplicationWithInfluencer = CampaignApplication & { influencer: { full_name: string } }
 
@@ -42,11 +43,11 @@ export default function CampaignDetail() {
 
   useEffect(() => {
     console.log('User state:', { user, userLoading })
-    if (params.id) {
+    if (params?.id) {
     loadCampaign()
       loadApplications()
     }
-  }, [params.id, user, userLoading])
+  }, [params?.id, user, userLoading])
 
   // Unified effect to load tasks, files, and notes when campaign.id is ready
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function CampaignDetail() {
   }, [campaign?.id, user?.id]);
 
   useEffect(() => {
-    if (!userLoading && params.id && user?.id) {
+    if (!userLoading && params?.id && user?.id) {
       supabase
         .from('campaign_applications')
         .select('id')
@@ -69,14 +70,14 @@ export default function CampaignDetail() {
           setHasApplied(!!(data && data.length > 0))
         })
     }
-  }, [params.id, user?.id, userLoading])
+  }, [params?.id, user?.id, userLoading])
   const loadCampaign = async () => {
     try {
-      console.log('Loading campaign for ID:', params.id)
+      console.log('Loading campaign for ID:', params?.id)
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', params?.id)
         .single()
 
       if (error) {
@@ -99,7 +100,7 @@ export default function CampaignDetail() {
           *,
           influencer:users!campaign_applications_influencer_id_fkey(*)
         `)
-        .eq('campaign_id', params.id)
+        .eq('campaign_id', params?.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -454,7 +455,7 @@ export default function CampaignDetail() {
               const { error } = await supabase
                 .from('campaign_applications')
                 .insert({
-                  campaign_id: params.id,
+                  campaign_id: params?.id,
                   influencer_id: user.id,
                   pitch,
                   proposed_rate: Number(proposedRate),
@@ -669,6 +670,12 @@ export default function CampaignDetail() {
           {tasks.length === 0 && <li className="text-gray-400 py-2">No tasks yet.</li>}
         </ul>
       </div>
+
+      {user?.user_metadata?.role === 'brand' && (
+        <div className="mt-6">
+          <RecommendedInfluencers campaignId={campaign.id} />
+        </div>
+      )}
     </div>
   )
 } 

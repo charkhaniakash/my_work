@@ -1,10 +1,13 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import { getNotificationPreferences } from './notification-preferences-service'
 
-// For client-side operations (limited by RLS)
-const supabase = createClientComponentClient()
+// Initialize Supabase admin client for notifications
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!
+)
 
-export type NotificationType = 'message' | 'application' | 'campaign' | 'user' | 'system'
+export type NotificationType = 'message' | 'application' | 'campaign' | 'invitation' | 'invitation_response'
 
 interface CreateNotificationParams {
   userId: string
@@ -28,56 +31,36 @@ export const createNotification = async ({
   try {
     // Check user preferences before sending notification
     if (type === 'message' || type === 'application' || type === 'campaign') {
-      // Get all preferences directly instead of using shouldSendNotification helper
       const preferences = await getNotificationPreferences(userId);
       
       const preferenceType = type === 'message' ? 'messages' : 
                             type === 'application' ? 'applications' : 'campaigns';
       
-      // Check if the specific notification type is enabled
       if (!preferences[preferenceType]) {
         console.log(`Notification of type ${type} disabled by user preferences for ${userId}`);
         return { data: null, error: null, skipped: true };
       }
     }
     
-    // Create the notification data object
-    const notificationData = {
-      user_id: userId,
-      title,
-      content,
-      type,
-      link,
-      related_id: relatedId,
-      related_type: relatedType,
-      is_read: false
-    };
-
-    // Try making the insert directly
-    const { data, error } = await supabase
+    // Create the notification using admin client
+    const { data, error } = await supabaseAdmin
       .from('notifications')
-      .insert(notificationData)
+      .insert({
+        user_id: userId,
+        title,
+        content,
+        type,
+        link,
+        related_id: relatedId,
+        related_type: relatedType,
+        is_read: false
+      })
       .select()
       .single();
 
-    // If direct insert fails, try using a server function (fallback)
     if (error) {
-      console.error('Direct notification creation failed:', error);
-      
-      // Call our API route as a fallback
-      const response = await fetch('/api/notifications/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(notificationData),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create notification via API route');
-      }
-      
-      return { data: await response.json(), error: null };
+      console.error('Error creating notification:', error);
+      throw error;
     }
 
     return { data, error: null };
@@ -164,4 +147,162 @@ export const createCampaignNotification = async (
     relatedId: campaignId,
     relatedType: 'campaign'
   })
+}
+
+// Create a notification for a new application using API route
+export async function createApplicationNotificationAdmin(
+  recipientId: string,
+  senderId: string,
+  senderName: string,
+  campaignTitle: string,
+  campaignId: string
+) {
+  try {
+    await fetch('/api/notifications/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipientId,
+        senderId,
+        type: 'application',
+        message: `${senderName} has applied to your campaign "${campaignTitle}"`,
+        campaignId
+      }),
+    });
+  } catch (error) {
+    console.error('Error creating application notification:', error);
+  }
+}
+
+// Create a notification for application status update using API route
+export async function createApplicationStatusNotificationAdmin(
+  recipientId: string,
+  senderId: string,
+  senderName: string,
+  campaignTitle: string,
+  campaignId: string,
+  status: string
+) {
+  try {
+    const statusText = status === 'approved' 
+      ? 'approved' 
+      : status === 'rejected' 
+        ? 'rejected' 
+        : 'updated';
+    
+    await fetch('/api/notifications/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipientId,
+        senderId,
+        type: 'application_status',
+        message: `${senderName} has ${statusText} your application for "${campaignTitle}"`,
+        campaignId,
+        status
+      }),
+    });
+  } catch (error) {
+    console.error('Error creating application status notification:', error);
+  }
+}
+
+// Create a notification for a new invitation
+export async function createInvitationNotificationAdmin(
+  recipientId: string,
+  senderId: string,
+  senderName: string,
+  campaignTitle: string,
+  campaignId: string
+) {
+  console.log('Creating invitation notification with:', {
+    recipientId,
+    senderId,
+    senderName,
+    campaignTitle,
+    campaignId
+  })
+
+  try {
+    console.log('Using Supabase admin client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    
+    const { data, error } = await supabaseAdmin
+      .from('notifications')
+      .insert({
+        user_id: recipientId,
+        title: 'New Campaign Invitation',
+        content: `${senderName} has invited you to join their campaign "${campaignTitle}"`,
+        type: 'invitation',
+        link: `/dashboard/invitations`,
+        related_id: campaignId,
+        related_type: 'campaign',
+        is_read: false
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating invitation notification:', error)
+      throw error;
+    }
+
+    console.log('Successfully created invitation notification:', data)
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in createInvitationNotificationAdmin:', error)
+    return { data: null, error };
+  }
+}
+
+// Create a notification for invitation response
+export async function createInvitationResponseNotificationAdmin(
+  recipientId: string,
+  senderId: string,
+  senderName: string,
+  campaignTitle: string,
+  campaignId: string,
+  status: string
+) {
+  console.log('Creating invitation response notification with:', {
+    recipientId,
+    senderId,
+    senderName,
+    campaignTitle,
+    campaignId,
+    status
+  })
+
+  try {
+    console.log('Using Supabase admin client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    
+    const { data, error } = await supabaseAdmin
+      .from('notifications')
+      .insert({
+        user_id: recipientId,
+        title: 'Invitation Response',
+        content: `${senderName} has ${status} your invitation for the campaign "${campaignTitle}"`,
+        type: 'invitation_response',
+        link: `/dashboard/campaigns/${campaignId}`,
+        related_id: campaignId,
+        related_type: 'campaign',
+        is_read: false
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating invitation response notification:', error)
+      throw error;
+    }
+
+    console.log('Successfully created invitation response notification:', data)
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in createInvitationResponseNotificationAdmin:', error)
+    return { data: null, error };
+  }
 } 

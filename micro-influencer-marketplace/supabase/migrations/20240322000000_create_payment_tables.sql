@@ -1,7 +1,7 @@
 -- Create payment transactions table
 CREATE TABLE payment_transactions (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  campaign_id TEXT REFERENCES campaigns(id) ON DELETE CASCADE,
+  campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
   brand_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   influencer_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   amount DECIMAL(10,2) NOT NULL,

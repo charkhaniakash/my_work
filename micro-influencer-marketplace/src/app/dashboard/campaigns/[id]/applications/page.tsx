@@ -32,19 +32,40 @@ export default function CampaignApplications() {
 
   useEffect(() => {
     loadApplications()
-  }, [params.id])
+  }, [params?.id])
 
   const loadApplications = async () => {
     try {
+      // First check if we're authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      console.log("Current session:", session)
+      
+      if (sessionError) {
+        console.error("Session error:", sessionError)
+        throw sessionError
+      }
+
+      // Get user role
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session?.user?.id)
+        .single()
+      
+      console.log("User role:", userData?.role)
+
       const { data: applications, error } = await supabase
         .from('campaign_applications')
         .select(`
           *,
           influencer:influencer_id(*)
         `)
-        .eq('campaign_id', params.id)
+        .eq('campaign_id', params?.id)
         .order('created_at', { ascending: false })
 
+      console.log("applicationsapplications", applications)
+      console.log("Error if any:", error)
+      
       if (error) throw error
       setApplications(applications || [])
     } catch (error) {
@@ -76,7 +97,7 @@ export default function CampaignApplications() {
       
       // If the application was accepted, redirect to the payment page
       if (newStatus === 'accepted') {
-        router.push(`/dashboard/campaigns/${params.id}/applications/${applicationId}`);
+        router.push(`/dashboard/campaigns/${params?.id}/applications/${applicationId}`);
       }
     } catch (error) {
       console.error('Error updating application status:', error);
@@ -167,7 +188,7 @@ export default function CampaignApplications() {
                     
                     {application.status === 'accepted' && (
                       <Link
-                        href={`/dashboard/campaigns/${params.id}/applications/${application.id}`}
+                        href={`/dashboard/campaigns/${params?.id}/applications/${application.id}`}
                         className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
                       >
                         <Banknote className="-ml-0.5 mr-1.5 h-5 w-5" />
@@ -188,7 +209,7 @@ export default function CampaignApplications() {
                     )}
                     
                     <Link
-                      href={`/dashboard/campaigns/${params.id}/applications/${application.id}`}
+                      href={`/dashboard/campaigns/${params?.id}/applications/${application.id}`}
                       className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                     >
                       View Details

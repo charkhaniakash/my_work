@@ -79,6 +79,9 @@ const EarningsTracker: React.FC<EarningsTrackerProps> = ({ userId }) => {
       // Fetch transactions for the user, specifically for their role as an influencer
       const res = await fetch(`/api/payments/earnings?userId=${userId}`);
       
+      console.log('Response status:', res.status);
+      console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+      
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to fetch earnings data');
