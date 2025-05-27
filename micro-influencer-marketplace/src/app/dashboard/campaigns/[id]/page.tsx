@@ -39,6 +39,9 @@ export default function CampaignDetail() {
   const [pitch, setPitch] = useState('')
   const [proposedRate, setProposedRate] = useState('')
   const [hasApplied, setHasApplied] = useState(false)
+  const [userApplication, setUserApplication] = useState<any>(null)
+  const [hasInvitation, setHasInvitation] = useState(false)
+  const [invitationStatus, setInvitationStatus] = useState<string | null>(null)
   const { user, isLoading: userLoading } = useSupabase()
 
   useEffect(() => {
@@ -61,13 +64,36 @@ export default function CampaignDetail() {
 
   useEffect(() => {
     if (!userLoading && params?.id && user?.id) {
+      // Check for existing application
       supabase
         .from('campaign_applications')
-        .select('id')
+        .select('*')
         .eq('campaign_id', params.id)
         .eq('influencer_id', user.id)
-        .then(({ data }) => {
-          setHasApplied(!!(data && data.length > 0))
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            setHasApplied(true)
+            setUserApplication(data[0]) // Get the first (and only) application
+          } else {
+            setHasApplied(false)
+            setUserApplication(null)
+          }
+        })
+
+      // Check for existing invitation
+      supabase
+        .from('campaign_invitations')
+        .select('*')
+        .eq('campaign_id', params.id)
+        .eq('influencer_id', user.id)
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            setHasInvitation(true)
+            setInvitationStatus(data[0].status)
+          } else {
+            setHasInvitation(false)
+            setInvitationStatus(null)
+          }
         })
     }
   }, [params?.id, user?.id, userLoading])
@@ -438,62 +464,223 @@ export default function CampaignDetail() {
         </div>
       </div>
 
-      {!userLoading && hasApplied && (
-        <div className="bg-green-100 border border-green-400 text-green-800 shadow sm:rounded-lg p-6 my-6">
-          <h3 className="text-lg font-semibold mb-2">You have already applied to this campaign.</h3>
+      {!userLoading && hasApplied && userApplication && (
+        <div className={`border shadow sm:rounded-lg p-6 my-6 ${
+          userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid'
+            ? 'bg-green-50 border-green-200'
+            : userApplication.status === 'rejected'
+            ? 'bg-red-50 border-red-200'
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                Application Status
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
+                  userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid'
+                    ? 'bg-green-100 text-green-800'
+                    : userApplication.status === 'rejected'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {userApplication.status === 'approved_and_paid' 
+                    ? 'Approved & Paid' 
+                    : userApplication.status === 'accepted'
+                    ? 'Accepted'
+                    : userApplication.status === 'rejected'
+                    ? 'Rejected'
+                    : 'Under Review'}
+                </span>
+              </h3>
+              
+              <div className="space-y-2">
+                {userApplication.status === 'pending' && (
+                  <p className="text-yellow-700">
+                    Your application is currently under review by the brand. You'll be notified once they make a decision.
+                  </p>
+                )}
+                
+                {userApplication.status === 'accepted' && (
+                  <p className="text-green-700">
+                    🎉 Congratulations! Your application has been accepted. The brand will contact you soon regarding payment and project details.
+                  </p>
+                )}
+                
+                {userApplication.status === 'approved_and_paid' && (
+                  <p className="text-green-700">
+                    ✅ Your application has been approved and payment has been processed. You can now start working on the campaign deliverables.
+                  </p>
+                )}
+                
+                {userApplication.status === 'rejected' && (
+                  <p className="text-red-700">
+                    Unfortunately, your application was not selected for this campaign. Don't worry, keep applying to other campaigns!
+                  </p>
+                )}
+                
+                <div className="mt-4 text-sm text-gray-600">
+                  <div><strong>Applied on:</strong> {new Date(userApplication.created_at).toLocaleDateString()}</div>
+                  <div><strong>Proposed rate:</strong> ${userApplication.proposed_rate}</div>
+                  {userApplication.status !== 'pending' && userApplication.updated_at && (
+                    <div><strong>Status updated:</strong> {new Date(userApplication.updated_at).toLocaleDateString()}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {(userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid') && (
+              <div className="ml-4">
+                {userApplication.status === 'accepted' && (
+                  <CheckCircle className="h-8 w-8 text-green-500" />
+                )}
+                {userApplication.status === 'approved_and_paid' && (
+                  <div className="flex flex-col items-center">
+                    <CheckCircle className="h-8 w-8 text-green-500" />
+                    <DollarSign className="h-6 w-6 text-green-600 -mt-1" />
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {userApplication.status === 'rejected' && (
+              <div className="ml-4">
+                <XCircle className="h-8 w-8 text-red-500" />
+              </div>
+            )}
+            
+            {userApplication.status === 'pending' && (
+              <div className="ml-4">
+                <Clock className="h-8 w-8 text-yellow-500" />
+              </div>
+            )}
+          </div>
+          
+          {/* Show pitch details */}
+          <div className="mt-4 p-4 bg-white bg-opacity-50 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">Your Application Details</h4>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{userApplication.pitch}</p>
+          </div>
         </div>
       )}
 
       {user?.user_metadata?.role === 'influencer' && !hasApplied && (
         <div className="bg-white shadow sm:rounded-lg p-6 my-6">
-          <h3 className="text-lg font-semibold mb-2">Apply to this Campaign</h3>
+          {/* Show invitation status if exists */}
+          {hasInvitation && invitationStatus === 'accepted' && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CheckCircle className="h-5 w-5 text-blue-400" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    You've already accepted an invitation for this campaign
+                  </h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>
+                      You accepted an invitation from this brand. Your application should appear in your{' '}
+                      <a href="/dashboard/applications" className="font-medium underline">
+                        applications page
+                      </a>
+                      .
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (!pitch.trim() || !proposedRate) return toast.error('Please fill all fields');
-              const { error } = await supabase
-                .from('campaign_applications')
-                .insert({
-                  campaign_id: params?.id,
-                  influencer_id: user.id,
-                  pitch,
-                  proposed_rate: Number(proposedRate),
-                  status: 'pending',
-                  brand_id: campaign?.brand_id
-                });
-              if (!error) {
-                toast.success('Application submitted!');
-                setHasApplied(true);
-              } else {
-                toast.error('Failed to apply');
-              }
-            }}
-            className="space-y-4"
-          >
-            <textarea
-              required
-              placeholder="Your pitch to the brand..."
-              value={pitch}
-              onChange={e => setPitch(e.target.value)}
-              className="w-full border rounded p-2"
-            />
-            <input
-              type="number"
-              required
-              placeholder="Proposed Rate ($)"
-              value={proposedRate}
-              onChange={e => setProposedRate(e.target.value)}
-              className="w-full border rounded p-2"
-            />
-            <button
-              type="submit"
-              className="bg-indigo-600 text-white px-4 py-2 rounded"
-            >
-              Apply
-            </button>
-          </form>
+          {hasInvitation && invitationStatus === 'pending' && (
+            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Clock className="h-5 w-5 text-yellow-400" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    You have a pending invitation for this campaign
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>
+                      You can respond to the invitation in your{' '}
+                      <a href="/dashboard/influencer/invitations" className="font-medium underline">
+                        invitations page
+                      </a>
+                      {' '}or apply directly below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
+          {/* Only show application form if no accepted invitation */}
+          {(!hasInvitation || invitationStatus !== 'accepted') && (
+            <>
+              <h3 className="text-lg font-semibold mb-2">Apply to this Campaign</h3>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!pitch.trim() || !proposedRate) return toast.error('Please fill all fields');
+                  
+                  try {
+                    const { error } = await supabase
+                      .from('campaign_applications')
+                      .insert({
+                        campaign_id: params?.id,
+                        influencer_id: user.id,
+                        pitch,
+                        proposed_rate: Number(proposedRate),
+                        status: 'pending',
+                        brand_id: campaign?.brand_id
+                      });
+                    
+                    if (error) {
+                      // Handle the specific error for accepted invitations
+                      if (error.message.includes('already accepted an invitation')) {
+                        toast.error('You have already accepted an invitation for this campaign. Check your applications page.');
+                        // Refresh the invitation status
+                        setHasInvitation(true);
+                        setInvitationStatus('accepted');
+                      } else {
+                        throw error;
+                      }
+                    } else {
+                      toast.success('Application submitted!');
+                      setHasApplied(true);
+                    }
+                  } catch (error) {
+                    console.error('Application error:', error);
+                    toast.error('Failed to apply');
+                  }
+                }}
+                className="space-y-4"
+              >
+                <textarea
+                  required
+                  placeholder="Your pitch to the brand..."
+                  value={pitch}
+                  onChange={e => setPitch(e.target.value)}
+                  className="w-full border rounded p-2"
+                />
+                <input
+                  type="number"
+                  required
+                  placeholder="Proposed Rate ($)"
+                  value={proposedRate}
+                  onChange={e => setProposedRate(e.target.value)}
+                  className="w-full border rounded p-2"
+                />
+                <button
+                  type="submit"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded"
+                >
+                  Apply
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )}
 

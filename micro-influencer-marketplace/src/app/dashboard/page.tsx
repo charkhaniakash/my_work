@@ -19,6 +19,8 @@ import { TrendingUp, DollarSign, Users, BarChart3, ArrowUpRight } from 'lucide-r
 // }
 
 export default function DashboardPage() {
+  const { supabase, user } = useSupabase();
+  console.log('🔍 User:', user)
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
@@ -50,11 +52,13 @@ export default function DashboardPage() {
           </div>
 
           {/* Right column for both users - shared across roles */}
+          {user?.user_metadata?.role === 'brand' && (
           <div className="lg:col-span-2 space-y-8">
             <Suspense fallback={<CardSkeleton />}>
               <RecentTransactions limit={5} />
-            </Suspense>
-          </div>
+              </Suspense>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -64,7 +68,9 @@ export default function DashboardPage() {
 function RoleBasedMainContent() {
   const [stats, setStats] = useState({
     activeCampaigns: 0,
-    totalSpent: 0
+    totalSpent: 0,
+    totalApplications: 0,
+    monthlyEarnings: 0
   });
   const [loading, setLoading] = useState(true);
   const { supabase, user } = useSupabase();
@@ -93,13 +99,50 @@ function RoleBasedMainContent() {
 
           setStats({
             activeCampaigns: campaigns?.length || 0,
-            totalSpent
+            totalSpent,
+            totalApplications: 0,
+            monthlyEarnings: 0
           });
         } catch (error) {
           console.error('Error fetching stats:', error);
         } finally {
           setLoading(false);
         }
+      } else if (user?.user_metadata?.role === 'influencer') {
+        try {
+          // Fetch applications count
+          const { data: applications, error: applicationsError } = await supabase
+            .from('campaign_applications')
+            .select('id, proposed_rate, status')
+            .eq('influencer_id', user.id);
+
+          if (applicationsError) throw applicationsError;
+
+          // Calculate monthly earnings (approved and paid applications)
+          const currentMonth = new Date().getMonth();
+          const currentYear = new Date().getFullYear();
+          
+          const monthlyEarnings = applications
+            ?.filter(app => {
+              if (app.status !== 'approved_and_paid') return false;
+              // Note: You might want to add a payment_date field to track this more accurately
+              return true; // For now, include all paid applications
+            })
+            .reduce((sum, app) => sum + (app.proposed_rate || 0), 0) || 0;
+
+          setStats({
+            activeCampaigns: 0,
+            totalSpent: 0,
+            totalApplications: applications?.length || 0,
+            monthlyEarnings
+          });
+        } catch (error) {
+          console.error('Error fetching influencer stats:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
       }
     }
 
@@ -112,7 +155,7 @@ function RoleBasedMainContent() {
         if (user?.user_metadata?.role === 'influencer') {
           return (
             <>
-              <PendingInvitations limit={2} />
+              <PendingInvitations limit={1} />
               <RecommendedCampaigns limit={3} />
 
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -122,25 +165,37 @@ function RoleBasedMainContent() {
                     <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-green-600">Earnings this month</p>
-                          <p className="text-2xl font-bold text-green-700 mt-1">$0.00</p>
+                          <p className="text-sm font-medium text-green-600">Total Earnings</p>
+                          <div className="text-2xl font-bold text-green-700 mt-1">
+                            {loading ? (
+                              <div className="animate-pulse bg-green-200 h-8 w-16 rounded"></div>
+                            ) : (
+                              `$${stats.monthlyEarnings.toLocaleString()}`
+                            )}
+                          </div>
                         </div>
                         <div className="bg-green-100 p-3 rounded-lg">
                           <DollarSign className="h-6 w-6 text-green-600" />
                         </div>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5">
+                    <Link href="/dashboard/applications" className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 block hover:from-blue-100 hover:to-blue-200 transition-colors">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-blue-600">Applications</p>
-                          <p className="text-2xl font-bold text-blue-700 mt-1">0</p>
+                          <div className="text-2xl font-bold text-blue-700 mt-1">
+                            {loading ? (
+                              <div className="animate-pulse bg-blue-200 h-8 w-16 rounded"></div>
+                            ) : (
+                              stats.totalApplications
+                            )}
+                          </div>
                         </div>
                         <div className="bg-blue-100 p-3 rounded-lg">
                           <Users className="h-6 w-6 text-blue-600" />
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -214,4 +269,5 @@ function RoleBasedMainContent() {
       }}
     </ClientOnly>
   )
-} 
+}
+

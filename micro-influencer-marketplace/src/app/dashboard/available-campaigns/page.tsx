@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { Campaign } from '@/lib/types/database'
-import { useAuth } from '@/lib/auth-context'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
 import { useSupabase } from '@/lib/providers/supabase-provider'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createApplicationNotification, createCampaignApplicationNotification } from '@/lib/services/notification-service'
 
 export default function AvailableCampaigns() {
   const { user } = useSupabase()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const highlightCampaignId = searchParams?.get('campaign')
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [showApplyModal, setShowApplyModal] = useState(false)
@@ -26,12 +27,26 @@ export default function AvailableCampaigns() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-
     if (user) {
       loadAvailableCampaigns()
       loadUserApplications()
     }
   }, [user])
+
+  // Scroll to highlighted campaign when campaigns load
+  useEffect(() => {
+    if (highlightCampaignId && campaigns.length > 0) {
+      const element = document.getElementById(`campaign-${highlightCampaignId}`)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // Add a temporary highlight effect
+        element.classList.add('ring-2', 'ring-indigo-500', 'ring-opacity-50')
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-indigo-500', 'ring-opacity-50')
+        }, 3000)
+      }
+    }
+  }, [highlightCampaignId, campaigns])
 
   const loadUserApplications = async () => {
     if (!user) return
@@ -86,7 +101,17 @@ export default function AvailableCampaigns() {
         proposed_rate: applicationData.proposed_rate
       }).select().single()
 
-      if (error) throw error
+      if (error) {
+        // Handle the specific error for accepted invitations
+        if (error.message.includes('already accepted an invitation')) {
+          toast.error('You have already accepted an invitation for this campaign. Check your applications page.')
+          setShowApplyModal(false)
+          setApplicationData({ pitch: '', proposed_rate: 0 })
+          setSelectedCampaign(null)
+          return
+        }
+        throw error
+      }
 
       // Update the applied campaigns list
       setAppliedCampaigns([...appliedCampaigns, selectedCampaign.id])
@@ -96,7 +121,8 @@ export default function AvailableCampaigns() {
         selectedCampaign.brand_id,
         user.user_metadata?.full_name || user.email,
         selectedCampaign.title,
-        data.id
+        data.id,
+        selectedCampaign.id
       )
       
       toast.success('Application submitted successfully')
@@ -138,12 +164,24 @@ export default function AvailableCampaigns() {
         {campaigns.map((campaign) => (
           <div
             key={campaign.id}
-            className="overflow-hidden rounded-lg bg-white shadow"
+            id={`campaign-${campaign.id}`}
+            className={`overflow-hidden rounded-lg bg-white shadow transition-all duration-300 ${
+              highlightCampaignId === campaign.id 
+                ? 'ring-2 ring-indigo-500 ring-opacity-50 shadow-lg' 
+                : ''
+            }`}
           >
             <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900">
-                {campaign.title}
-              </h3>
+              <div className="flex items-start justify-between">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {campaign.title}
+                </h3>
+                {highlightCampaignId === campaign.id && (
+                  <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                    New
+                  </span>
+                )}
+              </div>
               <p className="mt-2 text-sm text-gray-500 line-clamp-2">
                 {campaign.description}
               </p>
@@ -175,24 +213,32 @@ export default function AvailableCampaigns() {
                   ))}
                 </div>
               </div>
-              {appliedCampaigns.includes(campaign.id) ? (
+              <div className="mt-4 space-y-2">
                 <button
-                  disabled
-                  className="mt-4 w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm cursor-default"
+                  onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}
+                  className="w-full rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
                 >
-                  Applied
+                  View Details
                 </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    setSelectedCampaign(campaign)
-                    setShowApplyModal(true)
-                  }}
-                  className="mt-4 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                >
-                  Apply Now
-                </button>
-              )}
+                {appliedCampaigns.includes(campaign.id) ? (
+                  <button
+                    disabled
+                    className="w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm cursor-default"
+                  >
+                    Applied
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setSelectedCampaign(campaign)
+                      setShowApplyModal(true)
+                    }}
+                    className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  >
+                    Apply Now
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}

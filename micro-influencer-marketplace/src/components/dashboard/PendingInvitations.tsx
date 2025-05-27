@@ -10,7 +10,7 @@ interface PendingInvitationsProps {
   limit?: number
 }
 
-export default function PendingInvitations({ limit = 3 }: PendingInvitationsProps) {
+export default function PendingInvitations({ limit = 1 }: PendingInvitationsProps) {
   const [invitations, setInvitations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { supabase } = useSupabase()

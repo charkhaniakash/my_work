@@ -11,28 +11,28 @@ import {
   BellIcon,
   CreditCardIcon,
   BanknotesIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useConversations } from '@/lib/hooks/useConversations'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useSupabase } from '@/lib/providers/supabase-provider'
 
 export default function Sidebar() {
-  const { user } = useAuth()
   const pathname = usePathname()
   const { getUnreadCount } = useConversations()
   const [unreadCount, setUnreadCount] = useState(0)
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const supabase = createClientComponentClient()
+  const { user } = useSupabase()
 
   // Helper function to check user role safely
   const hasRole = (roleToCheck: string): boolean => {
     if (!user) return false;
     return user?.role === roleToCheck || user?.user_metadata?.role === roleToCheck;
   };
-
-  console.log("......" , user)
 
   useEffect(() => {
     if (user?.id) {
@@ -114,11 +114,6 @@ export default function Sidebar() {
             name: 'Create Campaign',
             href: '/dashboard/campaigns/create',
             icon: PlusCircleIcon
-          },
-          {
-            name: 'Applications',
-            href: '/dashboard/applications',
-            icon: InboxIcon
           }
         ]
       : [
@@ -129,8 +124,13 @@ export default function Sidebar() {
           },
           {
             name: 'My Applications',
-            href: '/dashboard/my-applications',
+            href: '/dashboard/applications',
             icon: ClipboardIcon
+          },
+          {
+            name: 'My Invitations',
+            href: '/dashboard/influencer/invitations',
+            icon: EnvelopeIcon
           }
         ]),
     {
@@ -146,12 +146,6 @@ export default function Sidebar() {
       badge: unreadNotifications > 0 ? unreadNotifications : undefined
     },
     { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
-    // Payment related links
-    {
-      name: 'Payment Methods',
-      href: '/dashboard/settings/payment-methods',
-      icon: CreditCardIcon
-    },
     // Role-specific payment features
     ...(hasRole('influencer')
       ? [{
@@ -167,8 +161,8 @@ export default function Sidebar() {
   ]
 
   return (
-    <nav className="flex flex-col h-full bg-white border-r border-gray-200">
-      <div className="flex-1 px-4 space-y-1">
+    <nav className="flex flex-col h-full">
+      <div className="flex-1 px-4 py-4 space-y-1">
         {navigation.map((item) => {
           const isActive = pathname === item.href
           return (

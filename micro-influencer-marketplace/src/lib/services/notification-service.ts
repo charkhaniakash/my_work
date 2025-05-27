@@ -88,7 +88,8 @@ export const createApplicationNotification = async (
   userId: string, 
   campaignTitle: string, 
   status: 'pending' | 'accepted' | 'rejected', 
-  applicationId: string
+  applicationId: string,
+  campaignId?: string
 ) => {
   let title = ''
   let content = ''
@@ -119,14 +120,15 @@ export const createCampaignApplicationNotification = async (
   brandId: string,
   influencerName: string,
   campaignTitle: string,
-  applicationId: string
+  applicationId: string,
+  campaignId?: string
 ) => {
   return createNotification({
     userId: brandId,
     title: 'New campaign application',
     content: `${influencerName} has applied to your campaign "${campaignTitle}".`,
     type: 'application',
-    link: `/dashboard/campaigns`,
+    link: campaignId ? `/dashboard/campaigns/${campaignId}` : `/dashboard/campaigns`,
     relatedId: applicationId,
     relatedType: 'application'
   })
@@ -143,7 +145,7 @@ export const createCampaignNotification = async (
     title: 'New campaign available',
     content: `${brandName} has posted a new campaign: "${campaignTitle}"`,
     type: 'campaign',
-    link: `/dashboard/available-campaigns`,
+    link: `/dashboard/campaigns/${campaignId}`,
     relatedId: campaignId,
     relatedType: 'campaign'
   })

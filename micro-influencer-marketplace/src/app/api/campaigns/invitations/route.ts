@@ -151,6 +151,7 @@ export async function GET(req: Request) {
     const influencerId = url.searchParams.get('influencerId')
     const status = url.searchParams.get('status')
     const invitationId = url.searchParams.get('id')
+    const limit = url.searchParams.get('limit')
     
     // Authorization check
     const authHeader = req.headers.get('authorization')
@@ -237,6 +238,14 @@ export async function GET(req: Request) {
     // Sort by creation date
     query = query.order('created_at', { ascending: false })
     
+    // Apply limit if specified
+    if (limit) {
+      const limitNumber = parseInt(limit, 10)
+      if (!isNaN(limitNumber) && limitNumber > 0) {
+        query = query.limit(limitNumber)
+      }
+    }
+    
     const { data: invitations, error: listError } = await query
     
     if (listError) {
@@ -258,7 +267,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json()
-    const { invitationId, status } = body
+    const { invitationId, status, pitch, proposedRate } = body
     
     // Authorization check
     const authHeader = req.headers.get('authorization')
@@ -289,13 +298,21 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Not authorized to update this invitation' }, { status: 403 })
     }
 
-    // Update the invitation status
+    // Update the invitation status and custom message/rate if provided
+    const updateData: any = { 
+      status,
+      updated_at: new Date().toISOString()
+    }
+    
+    // If accepting and pitch/rate provided, update those fields
+    if (status === 'accepted') {
+      if (pitch) updateData.custom_message = pitch
+      if (proposedRate !== undefined) updateData.proposed_rate = proposedRate
+    }
+    
     const { data: updatedInvitation, error: updateError } = await supabase
       .from('campaign_invitations')
-      .update({ 
-        status,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', invitationId)
       .select()
       .single()

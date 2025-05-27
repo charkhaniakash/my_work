@@ -204,6 +204,7 @@ export default function NotificationsDropdown() {
     
     // Navigate if there's a link
     if (notification.link) {
+      console.log("Notification link:", notification)
       router.push(notification.link)
     }
     

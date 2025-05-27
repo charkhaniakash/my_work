@@ -22,10 +22,12 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 - **Collaboration Tools:** Internal notes, shared files, and deliverable checklists for each campaign.
 - **Influencer Discovery:** Brands can search and filter influencers by niche, location, etc.
 - **Applications:** Influencers apply to campaigns; brands review, accept, or reject applications.
+- **Invitation System:** Brands can directly invite specific influencers to campaigns.
 - **Messaging:** Real-time chat between brands and influencers.
 - **Profile Management:** Influencers manage bio, social links, portfolio, and analytics. Brands manage company info.
 - **Analytics:** Campaign and influencer performance metrics, including charts.
 - **Security:** Role-based access, authentication with Clerk, and RLS for data protection.
+- **Conflict Resolution:** Smart handling of invitation-application conflicts to prevent duplicates.
 
 ---
 
@@ -54,8 +56,8 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 ### For Brands
 1. Sign Up / Log In
 2. Create a Campaign (or use a template)
-3. Wait for Applications from influencers
-4. Review Applications (accept/reject)
+3. Wait for Applications from influencers OR Send Invitations to specific influencers
+4. Review Applications/Invitations (accept/reject)
 5. Message Influencers and collaborate
 6. Manage Campaign (notes, files, checklist)
 7. Track Performance (analytics dashboard)
@@ -63,7 +65,7 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 ### For Influencers
 1. Sign Up / Log In
 2. Complete Profile (bio, social links, portfolio)
-3. Browse Campaigns and apply
+3. Browse Campaigns and apply OR Respond to invitations
 4. Message Brands if accepted
 5. Collaborate on Campaign (access files, checklist)
 6. Track Own Analytics
@@ -148,6 +150,27 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
   6. Brand receives response notifications
   7. Accepted influencers can start collaboration
 
+- **Conflict Resolution System** ⭐ NEW:
+  - **Database Level Protection**:
+    - Unique constraint on `campaign_applications` table prevents duplicate applications
+    - Smart triggers handle invitation acceptance and application conflicts
+    - Prevention triggers block direct applications when invitation already accepted
+  
+  - **Frontend Intelligence**:
+    - Real-time checking of invitation status before showing application forms
+    - Visual feedback for different conflict scenarios
+    - Clear messaging and user guidance for resolution
+  
+  - **Scenario Handling**:
+    - **Case 1**: Influencer accepts invitation first → Prevents duplicate application attempts
+    - **Case 2**: Influencer applies first → Invitation acceptance updates existing application
+    - **Case 3**: Pending invitation exists → Shows warning but allows direct application choice
+  
+  - **User Experience**:
+    - Campaign detail pages show invitation status with appropriate messaging
+    - Available campaigns page handles conflicts gracefully
+    - Clear navigation to relevant pages (applications, invitations)
+
 ### 4. Messaging System
 - **Direct Messaging Flow**:
   1. Users can message after connection
@@ -189,6 +212,12 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
   - In-app notification settings
   - Notification frequency controls
 
+- **Smart Redirects** ⭐ UPDATED:
+  - Campaign notifications redirect to specific campaign pages (`/dashboard/campaigns/${campaignId}`)
+  - Application notifications redirect to applications page with proper filtering
+  - Invitation notifications redirect to invitations page
+  - All notifications include relevant context and actionable links
+
 ### 6. Analytics & Reporting
 - Campaign performance metrics
 - Influencer engagement analytics
@@ -217,7 +246,8 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 - Users table
 - Profiles table
 - Campaigns table
-- Applications table
+- Applications table (with unique constraints)
+- Campaign Invitations table (with unique constraints)
 - Messages table
 - Notifications table
 - Notification Preferences table
@@ -225,7 +255,8 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 ### API Routes
 - Authentication endpoints
 - Campaign management
-- Application processing
+- Application processing (with conflict handling)
+- Invitation system (with response handling)
 - Messaging system
 - Notification handling
 - Analytics endpoints
@@ -237,6 +268,7 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 - Rate limiting
 - CORS configuration
 - XSS protection
+- Duplicate prevention (applications/invitations)
 
 ## Performance Optimizations
 - Server-side rendering
@@ -252,9 +284,68 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 - Environment configuration
 - Monitoring and logging
 
+## Recent Updates & Improvements
+
+### Sidebar Component Integration (Latest)
+**Problem Solved**: Dashboard layout was not using the dedicated Sidebar component, causing duplicate code and missing features. Also fixed navigation structure to show appropriate links for each role.
+
+**Implementation**:
+- Removed inline `SidebarContent` component from `layout.tsx`
+- Integrated the proper `Sidebar.tsx` component with all its features
+- Fixed navigation links to match actual application routes
+- **Enhanced role-based navigation structure**:
+  - **For Brands**: My Campaigns, Create Campaign, Available Campaigns, Applications, Messages, Notifications, Profile, Transactions
+  - **For Influencers**: Available Campaigns, My Applications, My Invitations, Messages, Notifications, Profile, My Earnings
+- Updated "Invitations" to "My Invitations" linking to `/dashboard/influencer/invitations`
+- Added "Available Campaigns" for brands to see what's available in the marketplace
+- Maintained real-time unread badges for messages and notifications
+- Preserved role-based navigation structure
+
+**Files Modified**:
+- `src/app/dashboard/layout.tsx` - Removed duplicate sidebar code, integrated Sidebar component
+- `src/components/Sidebar.tsx` - Fixed navigation routes and enhanced role-based navigation
+
+**User Benefits**:
+- Consistent navigation experience across the application
+- Real-time unread message and notification badges working properly
+- **Comprehensive role-based navigation** (brands and influencers see all relevant options)
+- Proper routing to influencer-specific invitations page
+- Better code maintainability with single sidebar component
+- Both roles can access available campaigns for discovery
+
+### Invitation-Application Conflict Resolution (Previous)
+**Problem Solved**: Prevented duplicate applications when influencers accept invitations and then try to apply directly.
+
+**Implementation**:
+- Database unique constraints and smart triggers
+- Frontend conflict detection and user guidance
+- Graceful error handling with clear messaging
+- Enhanced user experience with status indicators
+
+**Files Modified**:
+- `supabase/migrations/20240526000000_add_unique_constraint_applications.sql`
+- `src/app/dashboard/campaigns/[id]/page.tsx`
+- `src/app/dashboard/available-campaigns/page.tsx`
+- `src/lib/services/notification-service.ts`
+
+**User Benefits**:
+- No more duplicate applications
+- Clear understanding of invitation vs application status
+- Seamless workflow regardless of interaction path
+- Better data integrity and user experience
+
+### Notification System Improvements (Earlier)
+**Problem Solved**: Notifications redirected to generic pages instead of specific, actionable destinations.
+
+**Implementation**:
+- Updated notification links to include specific campaign IDs
+- Enhanced available campaigns page with URL parameter support
+- Added visual highlighting and auto-scroll for notification-accessed campaigns
+
 ## Future Enhancements
 - Advanced analytics
 - AI-powered matching
 - Payment integration
 - Mobile app development
-- Enhanced reporting tools 
+- Enhanced reporting tools
+- Advanced conflict resolution for complex scenarios 

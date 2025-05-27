@@ -16,6 +16,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
+import AcceptInvitationModal from './AcceptInvitationModal'
 
 interface InvitationCardProps {
   invitation: {
@@ -47,15 +48,14 @@ export default function InvitationCard({
   showActions = true
 }: InvitationCardProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [showAcceptModal, setShowAcceptModal] = useState(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
   
-  const handleStatusChange = async (status: 'accepted' | 'declined') => {
-    console.log('handleStatusChange called with status:', status)
-    
+
+  const handleDecline = async () => {
     // Get the current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    console.log('Session:', session)
     
     if (sessionError) {
       console.error('Session error:', sessionError)
@@ -64,15 +64,13 @@ export default function InvitationCard({
     }
     
     if (!session) {
-      console.log('No session found')
       toast.error('You must be logged in to respond to invitations')
-      router.push('/login') // Redirect to login page
+      router.push('/login')
       return
     }
     
     setIsLoading(true)
     try {
-      console.log('Sending PATCH request to /api/campaigns/invitations')
       const response = await fetch('/api/campaigns/invitations', {
         method: 'PATCH',
         headers: {
@@ -81,27 +79,76 @@ export default function InvitationCard({
         },
         body: JSON.stringify({
           invitationId: invitation.id,
-          status
+          status: 'declined'
         })
       })
       
-      console.log('Response status:', response.status)
       const data = await response.json()
-      console.log('Response data:', data)
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update invitation')
+        throw new Error(data.error || 'Failed to decline invitation')
       }
       
-      toast.success(status === 'accepted' ? 'Invitation Accepted' : 'Invitation Declined')
+      toast.success('Invitation Declined')
       
       if (onStatusChange) {
-        console.log('Calling onStatusChange callback')
-        onStatusChange(invitation.id, status)
+        onStatusChange(invitation.id, 'declined')
       }
     } catch (error: any) {
-      console.error('Error in handleStatusChange:', error)
+      console.error('Error declining invitation:', error)
       toast.error(error.message || 'Something went wrong')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAccept = async (pitch: string, proposedRate: number) => {
+    // Get the current session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError)
+      toast.error('Authentication error')
+      throw new Error('Authentication error')
+    }
+    
+    if (!session) {
+      toast.error('You must be logged in to respond to invitations')
+      router.push('/login')
+      throw new Error('Not authenticated')
+    }
+    
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/campaigns/invitations', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          invitationId: invitation.id,
+          status: 'accepted',
+          pitch,
+          proposedRate
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to accept invitation')
+      }
+      
+      toast.success('Invitation Accepted')
+      
+      if (onStatusChange) {
+        onStatusChange(invitation.id, 'accepted')
+      }
+    } catch (error: any) {
+      console.error('Error accepting invitation:', error)
+      toast.error(error.message || 'Something went wrong')
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -161,7 +208,7 @@ export default function InvitationCard({
             variant="outline" 
             size="sm"
             disabled={isLoading}
-            onClick={() => handleStatusChange('declined')}
+            onClick={handleDecline}
           >
             <X className="h-4 w-4 mr-1" />
             Decline
@@ -169,13 +216,22 @@ export default function InvitationCard({
           <Button 
             size="sm"
             disabled={isLoading}
-            onClick={() => handleStatusChange('accepted')}
+            onClick={() => setShowAcceptModal(true)}
           >
             <Check className="h-4 w-4 mr-1" />
             Accept
           </Button>
         </CardFooter>
       )}
+      
+      <AcceptInvitationModal
+        isOpen={showAcceptModal}
+        onClose={() => setShowAcceptModal(false)}
+        onAccept={handleAccept}
+        campaignTitle={invitation.campaign.title}
+        brandName={invitation.brand.full_name}
+        isLoading={isLoading}
+      />
     </Card>
   )
 }
