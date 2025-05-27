@@ -359,8 +359,9 @@ export default function Campaigns() {
                               id="title"
                               value={formData.title}
                               onChange={handleInputChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
                               required
+                              placeholder="Enter campaign title"
                             />
                           </div>
 
@@ -374,8 +375,9 @@ export default function Campaigns() {
                               rows={3}
                               value={formData.description}
                               onChange={handleInputChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
                               required
+                              placeholder="Describe your campaign"
                             />
                           </div>
 
@@ -394,8 +396,9 @@ export default function Campaigns() {
                                   id="budget"
                                   value={formData.budget}
                                   onChange={handleInputChange}
-                                  className="block w-full pl-7 pr-12 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full pl-7 pr-12 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-3"
                                   required
+                                  placeholder="0.00"
                                 />
                               </div>
                             </div>
@@ -410,7 +413,8 @@ export default function Campaigns() {
                                 id="target_location"
                                 value={formData.target_location}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                                placeholder="e.g., New York, USA"
                               />
                             </div>
                           </div>
@@ -426,7 +430,7 @@ export default function Campaigns() {
                                 id="start_date"
                                 value={formData.start_date}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
                                 required
                               />
                             </div>
@@ -441,7 +445,7 @@ export default function Campaigns() {
                                 id="end_date"
                                 value={formData.end_date}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
                                 required
                               />
                             </div>
@@ -479,20 +483,21 @@ export default function Campaigns() {
                               rows={3}
                               value={formData.requirements}
                               onChange={handleInputChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                              placeholder="List the requirements for influencers"
                             />
                           </div>
 
                           <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                             <button
                               type="submit"
-                              className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto"
+                              className="inline-flex w-full justify-center rounded-md bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-700 hover:to-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all duration-200 sm:ml-3 sm:w-auto"
                             >
                               Create Campaign
                             </button>
                             <button
                               type="button"
-                              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors duration-200 sm:mt-0 sm:w-auto"
                               onClick={() => setShowCreateModal(false)}
                             >
                               Cancel

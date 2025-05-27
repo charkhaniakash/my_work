@@ -10,7 +10,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ heading, text, children }: DashboardHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex items-center justify-between mb-6 p-3">
       <div>
         <h1 className="text-2xl font-bold leading-tight tracking-wide text-gray-900">
           {heading}

@@ -93,7 +93,7 @@ export default function PendingInvitations({ limit = 3 }: PendingInvitationsProp
           <h3 className="text-lg font-medium">Pending Invitations</h3>
           <p className="text-sm text-muted-foreground">Campaign collaboration invitations</p>
         </div>
-        <Link href="/influencer/invitations" className="text-sm text-primary hover:underline">
+        <Link href="/dashboard/influencer/invitations" className="text-sm text-primary hover:underline">
           View all
         </Link>
       </div>

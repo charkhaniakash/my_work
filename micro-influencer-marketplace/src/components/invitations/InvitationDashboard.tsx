@@ -21,7 +21,7 @@ export default function InvitationDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold mb-4">Invitation Overview</h2>
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -37,7 +37,7 @@ export default function InvitationDashboard() {
             <span className="font-semibold">0</span>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   )
 } 
