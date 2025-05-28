@@ -1,37 +1,58 @@
-// components/sign-in-form.tsx
 'use client'
 
 import { useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 
-export function SignInForm() {
+export default function SignUpForm() {
   const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
-
+  
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords don't match")
+      setIsLoading(false)
+      return
+    }
+  
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Sign up the user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       })
-
-      if (error) {
-        setError(error.message)
-        toast.error(error.message)
-      } else if (data?.user) {
-        toast.success('Signed in successfully!')
-        // Don't manually redirect here - let the auth state change handler do it
-        // The onAuthStateChange listener in AuthProvider will handle the redirect
+  
+      if (authError) {
+        throw authError
+      }
+  
+      if (authData?.user) {
+        // Create an entry in the custom users table
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: authData.user.id,
+            email: authData.user.email,
+            full_name: '', // You might want to add a full_name field to your form
+            role: 'influencer', // Or 'brand', depending on your app's logic
+          })
+  
+        if (insertError) {
+          throw insertError
+        }
+  
+        toast.success('Signed up successfully! Please check your email to confirm your account.')
+        // You might want to redirect to a "check your email" page or show a message here
       }
     } catch (err: any) {
       const errorMessage = err?.message || 'An unexpected error occurred'
@@ -41,6 +62,7 @@ export function SignInForm() {
       setIsLoading(false)
     }
   }
+  
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -77,6 +99,20 @@ export function SignInForm() {
           disabled={isLoading}
         />
       </div>
+      <div>
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+          Confirm Password
+        </label>
+        <input
+          id="confirmPassword"
+          type="password"
+          required
+          value={formData.confirmPassword}
+          onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+          disabled={isLoading}
+        />
+      </div>
       <button
         type="submit"
         disabled={isLoading}
@@ -85,10 +121,10 @@ export function SignInForm() {
         {isLoading ? (
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-            Signing in...
+            Signing up...
           </div>
         ) : (
-          'Sign in'
+          'Sign up'
         )}
       </button>
     </form>

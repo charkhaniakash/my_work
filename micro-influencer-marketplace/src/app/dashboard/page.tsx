@@ -167,32 +167,32 @@ function RoleBasedMainContent() {
                       <StatCardSkeleton />
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
-                        <div className="flex items-center justify-between">
-                          <div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
                             <p className="text-sm font-medium text-green-600">Total Earnings</p>
                             <div className="text-2xl font-bold text-green-700 mt-1">
                               ${stats.monthlyEarnings.toLocaleString()}
                             </div>
-                          </div>
-                          <div className="bg-green-100 p-3 rounded-lg">
-                            <DollarSign className="h-6 w-6 text-green-600" />
-                          </div>
+                        </div>
+                        <div className="bg-green-100 p-3 rounded-lg">
+                          <DollarSign className="h-6 w-6 text-green-600" />
                         </div>
                       </div>
+                    </div>
                       <Link href="/dashboard/applications" className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 block hover:from-blue-100 hover:to-blue-200 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-blue-600">Applications</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-blue-600">Applications</p>
                             <div className="text-2xl font-bold text-blue-700 mt-1">
                               {stats.totalApplications}
                             </div>
-                          </div>
-                          <div className="bg-blue-100 p-3 rounded-lg">
-                            <Users className="h-6 w-6 text-blue-600" />
-                          </div>
                         </div>
+                        <div className="bg-blue-100 p-3 rounded-lg">
+                          <Users className="h-6 w-6 text-blue-600" />
+                        </div>
+                      </div>
                       </Link>
                     </div>
                   )}
@@ -216,34 +216,34 @@ function RoleBasedMainContent() {
                       <StatCardSkeleton />
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-purple-600">Active Campaigns</p>
-                            <div className="text-2xl font-bold text-purple-700 mt-1">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-purple-600">Active Campaigns</p>
+                          <div className="text-2xl font-bold text-purple-700 mt-1">
                               {stats.activeCampaigns}
-                            </div>
-                          </div>
-                          <div className="bg-purple-100 p-3 rounded-lg">
-                            <TrendingUp className="h-6 w-6 text-purple-600" />
                           </div>
                         </div>
-                      </div>
-                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-5">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-indigo-600">Total Spent</p>
-                            <div className="text-2xl font-bold text-indigo-700 mt-1">
-                              ${stats.totalSpent.toLocaleString()}
-                            </div>
-                          </div>
-                          <div className="bg-indigo-100 p-3 rounded-lg">
-                            <BarChart3 className="h-6 w-6 text-indigo-600" />
-                          </div>
+                        <div className="bg-purple-100 p-3 rounded-lg">
+                          <TrendingUp className="h-6 w-6 text-purple-600" />
                         </div>
                       </div>
                     </div>
+                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-indigo-600">Total Spent</p>
+                          <div className="text-2xl font-bold text-indigo-700 mt-1">
+                              ${stats.totalSpent.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-indigo-100 p-3 rounded-lg">
+                          <BarChart3 className="h-6 w-6 text-indigo-600" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   )}
                 </div>
               </div>

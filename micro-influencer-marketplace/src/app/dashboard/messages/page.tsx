@@ -384,7 +384,7 @@ export default function Messages() {
             </div>
           </div>
         </div>
-      </div>
+    </div>
     )
   }
 
@@ -561,7 +561,7 @@ export default function Messages() {
                   {sendingMessage ? (
                     <ButtonLoader />
                   ) : (
-                    <Send className="h-4 w-4" />
+                  <Send className="h-4 w-4" />
                   )}
                 </button>
               </form>

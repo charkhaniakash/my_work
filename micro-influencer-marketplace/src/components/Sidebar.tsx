@@ -133,7 +133,7 @@ export default function Sidebar() {
             icon: ClipboardIcon
           },
           {
-            name: 'My Invitations',
+            name: 'View Invitations',
             href: '/dashboard/influencer/invitations',
             icon: EnvelopeIcon
           }

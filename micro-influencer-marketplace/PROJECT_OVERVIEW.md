@@ -347,5 +347,5 @@ A marketing project created by a brand to achieve a specific goal (e.g., product
 - AI-powered matching
 - Payment integration
 - Mobile app development
-- Enhanced reporting tools
+- Enhanced reporting tools 
 - Advanced conflict resolution for complex scenarios 

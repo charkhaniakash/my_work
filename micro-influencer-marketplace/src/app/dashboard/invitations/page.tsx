@@ -298,8 +298,8 @@ export default function InvitationsPage() {
                                   Updated: {formatDate(invitation.updated_at)}
                                 </div>
                               )}
-                            </div>
-                            
+      </div>
+
                             {invitation.custom_message && (
                               <div className="bg-gray-50 p-3 rounded-md mb-4">
                                 <p className="text-sm text-gray-700">
@@ -307,8 +307,8 @@ export default function InvitationsPage() {
                                 </p>
                               </div>
                             )}
-                          </div>
-                          
+        </div>
+
                           <div className="flex flex-col gap-2 ml-4">
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/dashboard/campaigns/${invitation.campaign_id}`}>
