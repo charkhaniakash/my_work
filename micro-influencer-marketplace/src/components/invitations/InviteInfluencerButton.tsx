@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
+import { toast } from 'react-hot-toast'
 import {
   Dialog,
   DialogContent,
@@ -92,12 +92,24 @@ export default function InviteInfluencerButton({
       const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send invitation')
+        if (response.status === 409) {
+          if (data.error.includes('already sent')) {
+            toast.error('You have already sent an invitation to this influencer for this campaign')
+          } else if (data.error.includes('already accepted')) {
+            toast.error('This influencer has already accepted an invitation for this campaign')
+          } else {
+            toast.error('An invitation already exists for this influencer')
+          }
+        } else {
+          toast.error(data.error || 'Failed to send invitation')
+        }
+        return
       }
       
       toast.success('Invitation sent successfully')
       
       setIsDialogOpen(false)
+      form.reset()
       if (onInviteSent) onInviteSent()
     } catch (error: any) {
       console.error('Error sending invitation:', error)

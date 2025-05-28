@@ -111,10 +111,15 @@ export default function Sidebar() {
             icon: BriefcaseIcon
           },
           {
-            name: 'Create Campaign',
-            href: '/dashboard/campaigns/create',
-            icon: PlusCircleIcon
+            name: 'Invitations',
+            href: '/dashboard/invitations',
+            icon: BriefcaseIcon
           }
+          // {
+          //   name: 'Create Campaign',
+          //   href: '/dashboard/campaigns/new',
+          //   icon: PlusCircleIcon
+          // }
         ]
       : [
           {

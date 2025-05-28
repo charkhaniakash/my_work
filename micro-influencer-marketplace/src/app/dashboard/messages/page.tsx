@@ -9,6 +9,7 @@ import NewConversation from '@/components/NewConversation'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { User as DBUser } from '@/lib/types/database'
 import { createMessageNotification } from '@/lib/services/notification-service'
+import { MessageSkeleton, ButtonLoader } from '@/components/loaders'
 
 type User = DBUser;
 
@@ -28,12 +29,12 @@ interface Message {
 }
 
 export default function Messages() {
-  const searchParams = useSearchParams()
-  const supabase = createClientComponentClient()
   const { user, isLoading: userLoading } = useSupabase()
-  
-  const [contacts, setContacts] = useState<User[]>([])
+  const searchParams = useSearchParams()
+  const contactId = searchParams?.get('contact')
+  const supabase = createClientComponentClient()
   const [selectedContact, setSelectedContact] = useState<User | null>(null)
+  const [contacts, setContacts] = useState<User[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -46,14 +47,14 @@ export default function Messages() {
   const [showNewConversation, setShowNewConversation] = useState(false)
   const [modalUserSearchResults, setModalUserSearchResults] = useState<User[]>([])
   const [modalLoading, setModalLoading] = useState(false)
+  const [sendingMessage, setSendingMessage] = useState(false)
 
   // Add effect to handle contact parameter from URL
   useEffect(() => {
-    const contactId = searchParams.get('contact')
-    if (contactId && !selectedContact) {
+    if (contactId && user) {
       loadContact(contactId)
     }
-  }, [searchParams, selectedContact])
+  }, [contactId, user])
 
   console.log("contacts" , contacts)
   useEffect(() => {
@@ -163,6 +164,7 @@ export default function Messages() {
     if (!selectedContact || !newMessage.trim() || !user) return
 
     try {
+      setSendingMessage(true)
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -187,6 +189,8 @@ export default function Messages() {
     } catch (error) {
       console.error('Error sending message:', error)
       toast.error('Failed to send message')
+    } finally {
+      setSendingMessage(false)
     }
   }
 
@@ -343,9 +347,45 @@ export default function Messages() {
   }
 
   if (userLoading || loading || !user) {
-    return <div className="flex justify-center items-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-    </div>
+    return (
+      <div className="h-[calc(100vh-4rem)] flex">
+        {/* Conversations List Loading */}
+        <div className="w-80 border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search conversations"
+                disabled
+                className="block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+              />
+            </div>
+          </div>
+          <nav className="flex-1 overflow-y-auto">
+            <div className="space-y-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <MessageSkeleton key={i} />
+              ))}
+            </div>
+          </nav>
+        </div>
+
+        {/* Chat Area Loading */}
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center px-6 py-10">
+            <div className="animate-pulse">
+              <div className="h-12 w-12 bg-gray-200 rounded-full mx-auto mb-4"></div>
+              <div className="h-6 bg-gray-200 rounded w-32 mx-auto mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-48 mx-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -515,10 +555,14 @@ export default function Messages() {
                 />
                 <button
                   type="submit"
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() || sendingMessage}
                   className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Send className="h-4 w-4" />
+                  {sendingMessage ? (
+                    <ButtonLoader />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </button>
               </form>
             </div>

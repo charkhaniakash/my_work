@@ -40,6 +40,54 @@ export default function EditCampaign() {
     status: 'active' as 'active' | 'paused' | 'completed'
   })
 
+  // Helper functions for date logic
+  const isDateInPast = (dateString: string) => {
+    if (!dateString) return false
+    const date = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    date.setHours(0, 0, 0, 0)
+    return date < today
+  }
+
+  const isDateToday = (dateString: string) => {
+    if (!dateString) return false
+    const date = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    date.setHours(0, 0, 0, 0)
+    return date.getTime() === today.getTime()
+  }
+
+  const canEditStartDate = () => {
+    if (!campaign) return true
+    // Can't edit start date if campaign has already started (unless it's today)
+    return !isDateInPast(campaign.start_date) || isDateToday(campaign.start_date)
+  }
+
+  const canEditEndDate = () => {
+    if (!campaign) return true
+    // Can always edit end date unless campaign is completed
+    return campaign.status !== 'completed'
+  }
+
+  const getMinStartDate = () => {
+    if (!campaign) return new Date().toISOString().split('T')[0]
+    
+    // If campaign hasn't started yet, can set any future date
+    if (!isDateInPast(campaign.start_date) && !isDateToday(campaign.start_date)) {
+      return new Date().toISOString().split('T')[0]
+    }
+    
+    // If campaign has started or is starting today, can't change to past date
+    return campaign.start_date
+  }
+
+  const getMinEndDate = () => {
+    // End date should be at least the start date
+    return formData.start_date || new Date().toISOString().split('T')[0]
+  }
+
   useEffect(() => {
     if (params.id) {
       loadCampaign()
@@ -221,6 +269,9 @@ export default function EditCampaign() {
               <div>
                 <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
                   Start Date
+                  {!canEditStartDate() && (
+                    <span className="text-xs text-amber-600 ml-2">(Cannot modify - campaign already started)</span>
+                  )}
                 </label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -230,15 +281,28 @@ export default function EditCampaign() {
                     type="date"
                     id="start_date"
                     required
+                    disabled={!canEditStartDate()}
+                    min={getMinStartDate()}
                     value={formData.start_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                    className="block w-full pl-10 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                    className={`block w-full pl-10 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3 ${
+                      !canEditStartDate() ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''
+                    }`}
                   />
                 </div>
+                {!canEditStartDate() && (
+                  <p className="mt-2 text-sm text-amber-600 flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Campaign has already started and cannot be rescheduled
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
                   End Date
+                  {!canEditEndDate() && (
+                    <span className="text-xs text-amber-600 ml-2">(Cannot modify - campaign completed)</span>
+                  )}
                 </label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -248,11 +312,21 @@ export default function EditCampaign() {
                     type="date"
                     id="end_date"
                     required
+                    disabled={!canEditEndDate()}
+                    min={getMinEndDate()}
                     value={formData.end_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                    className="block w-full pl-10 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
+                    className={`block w-full pl-10 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3 ${
+                      !canEditEndDate() ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''
+                    }`}
                   />
                 </div>
+                {!canEditEndDate() && (
+                  <p className="mt-2 text-sm text-amber-600 flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Cannot modify end date of completed campaign
+                  </p>
+                )}
               </div>
             </div>
 

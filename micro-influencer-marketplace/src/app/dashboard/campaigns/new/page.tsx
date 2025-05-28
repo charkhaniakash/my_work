@@ -59,9 +59,29 @@ export default function NewCampaign() {
   }, [user?.id])
 
   const determineCampaignStatus = (startDate: string) => {
+    if (!startDate) return 'active'
+    
     const now = new Date()
     const start = new Date(startDate)
+    
+    // Set time to start of day for proper comparison
+    now.setHours(0, 0, 0, 0)
+    start.setHours(0, 0, 0, 0)
+    
     return start > now ? 'scheduled' : 'active'
+  }
+
+  const isScheduledCampaign = (startDate: string) => {
+    if (!startDate) return false
+    
+    const now = new Date()
+    const start = new Date(startDate)
+    
+    // Set time to start of day for proper comparison
+    now.setHours(0, 0, 0, 0)
+    start.setHours(0, 0, 0, 0)
+    
+    return start > now
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -264,10 +284,16 @@ export default function NewCampaign() {
                     className="block w-full pl-10 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
                   />
                 </div>
-                {formData.start_date && new Date(formData.start_date) > new Date() && (
+                {formData.start_date && isScheduledCampaign(formData.start_date) && (
                   <p className="mt-2 text-sm text-indigo-600 flex items-center">
                     <Calendar className="h-4 w-4 mr-1" />
                     Campaign will be scheduled to start on {new Date(formData.start_date).toLocaleDateString()}
+                  </p>
+                )}
+                {formData.start_date && !isScheduledCampaign(formData.start_date) && (
+                  <p className="mt-2 text-sm text-green-600 flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Campaign will start immediately when created
                   </p>
                 )}
               </div>

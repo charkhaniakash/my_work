@@ -7,6 +7,7 @@ import { Campaign } from '@/lib/types/database'
 import { toast } from 'react-hot-toast'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { motion, AnimatePresence } from 'framer-motion'
+import { PageLoader, CampaignCardSkeleton } from '@/components/loaders'
 
 const nichesOptions = [
   'Fashion',
@@ -68,6 +69,32 @@ export default function Campaigns() {
     }))
   }
 
+  const determineCampaignStatus = (startDate: string) => {
+    if (!startDate) return 'active'
+    
+    const now = new Date()
+    const start = new Date(startDate)
+    
+    // Set time to start of day for proper comparison
+    now.setHours(0, 0, 0, 0)
+    start.setHours(0, 0, 0, 0)
+    
+    return start > now ? 'scheduled' : 'active'
+  }
+
+  const isScheduledCampaign = (startDate: string) => {
+    if (!startDate) return false
+    
+    const now = new Date()
+    const start = new Date(startDate)
+    
+    // Set time to start of day for proper comparison
+    now.setHours(0, 0, 0, 0)
+    start.setHours(0, 0, 0, 0)
+    
+    return start > now
+  }
+
   const handleNicheChange = (niche: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -87,21 +114,19 @@ export default function Campaigns() {
         return
       }
 
-      // Convert requirements to array if it's a string
-      const requirements = typeof formData.requirements === 'string' 
-        ? [formData.requirements]
-        : formData.requirements || []
+      // Determine campaign status based on start date
+      const campaignStatus = determineCampaignStatus(formData.start_date)
 
       const campaign = await createCampaign({
         ...formData as Omit<Campaign, 'id' | 'created_at' | 'updated_at'>,
         budget: Number(formData.budget),
         requirements: formData.requirements || '',
         target_niche: formData.target_niche || [],
-        status: 'active' as 'active' | 'paused' | 'completed'
+        status: campaignStatus as 'scheduled' | 'active' | 'paused' | 'completed'
       })
 
       if (campaign) {
-        toast.success('Campaign created successfully')
+        toast.success(`Campaign ${campaignStatus === 'scheduled' ? 'scheduled' : 'created'} successfully`)
         setCampaigns([...campaigns, campaign])
         setFormData({
           title: '',
@@ -131,8 +156,24 @@ export default function Campaigns() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+              Campaigns
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-gray-500">
+              Manage your influencer marketing campaigns
+            </p>
+          </div>
+        </div>
+        
+        {/* Loading skeleton */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CampaignCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     )
   }
@@ -428,11 +469,30 @@ export default function Campaigns() {
                                 type="date"
                                 name="start_date"
                                 id="start_date"
+                                min={new Date().toISOString().split('T')[0]}
                                 value={formData.start_date}
-                                onChange={handleInputChange}
+                                onChange={(e) => {
+                                  const newStartDate = e.target.value
+                                  setFormData(prev => ({ 
+                                    ...prev, 
+                                    start_date: newStartDate
+                                  }))
+                                }}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"
                                 required
                               />
+                              {formData.start_date && isScheduledCampaign(formData.start_date) && (
+                                <p className="mt-2 text-sm text-indigo-600 flex items-center">
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  Campaign will be scheduled to start on {new Date(formData.start_date).toLocaleDateString()}
+                                </p>
+                              )}
+                              {formData.start_date && !isScheduledCampaign(formData.start_date) && (
+                                <p className="mt-2 text-sm text-green-600 flex items-center">
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  Campaign will start immediately when created
+                                </p>
+                              )}
                             </div>
 
                             <div>
@@ -443,6 +503,7 @@ export default function Campaigns() {
                                 type="date"
                                 name="end_date"
                                 id="end_date"
+                                min={formData.start_date || new Date().toISOString().split('T')[0]}
                                 value={formData.end_date}
                                 onChange={handleInputChange}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-3"

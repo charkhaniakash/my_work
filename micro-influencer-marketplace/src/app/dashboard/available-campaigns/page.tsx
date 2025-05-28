@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react'
 import { Campaign } from '@/lib/types/database'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
-import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
+import { Calendar, DollarSign, MapPin, Tag, Clock } from 'lucide-react'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createApplicationNotification, createCampaignApplicationNotification } from '@/lib/services/notification-service'
+import { CampaignCardSkeleton, ButtonLoader } from '@/components/loaders'
+import { useCampaignStatus, getCampaignStatusBadge, canUserApplyToCampaign } from '@/lib/hooks/useCampaignStatus'
 
 export default function AvailableCampaigns() {
   const { user } = useSupabase()
@@ -19,6 +21,7 @@ export default function AvailableCampaigns() {
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const [appliedCampaigns, setAppliedCampaigns] = useState<string[]>([])
+  const [submittingApplication, setSubmittingApplication] = useState(false)
   const [applicationData, setApplicationData] = useState({
     pitch: '',
     proposed_rate: 0
@@ -72,7 +75,7 @@ export default function AvailableCampaigns() {
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
-        .eq('status', 'active')
+        .in('status', ['active', 'scheduled']) // Include both active and scheduled campaigns
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -92,6 +95,7 @@ export default function AvailableCampaigns() {
     if (!user?.id || !selectedCampaign) return
 
     try {
+      setSubmittingApplication(true)
       const { error, data } = await supabase.from('campaign_applications').insert({
         campaign_id: selectedCampaign.id,
         influencer_id: user.id,
@@ -132,11 +136,139 @@ export default function AvailableCampaigns() {
     } catch (error) {
       toast.error('Failed to submit application')
       console.error('Error:', error)
+    } finally {
+      setSubmittingApplication(false)
     }
   }
 
+  // Component for individual campaign card
+  function CampaignCard({ campaign }: { campaign: Campaign }) {
+    const campaignStatus = useCampaignStatus(campaign.start_date, campaign.end_date, campaign.status)
+    const hasApplied = appliedCampaigns.includes(campaign.id)
+    const applicationEligibility = canUserApplyToCampaign(campaignStatus, user?.user_metadata?.role || '', hasApplied)
+    const statusBadge = getCampaignStatusBadge(campaignStatus)
+
+    return (
+      <div
+        key={campaign.id}
+        id={`campaign-${campaign.id}`}
+        className={`overflow-hidden rounded-lg bg-white shadow transition-all duration-300 ${
+          highlightCampaignId === campaign.id 
+            ? 'ring-2 ring-indigo-500 ring-opacity-50 shadow-lg' 
+            : ''
+        }`}
+      >
+        <div className="p-6">
+          <div className="flex items-start justify-between">
+            <h3 className="text-lg font-medium text-gray-900">
+              {campaign.title}
+            </h3>
+            <div className="flex items-center gap-2">
+              {highlightCampaignId === campaign.id && (
+                <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                  New
+                </span>
+              )}
+              <span className={statusBadge.className}>
+                {statusBadge.text}
+              </span>
+            </div>
+          </div>
+          
+          <p className="mt-2 text-sm text-gray-500 line-clamp-2">
+            {campaign.description}
+          </p>
+          
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center text-sm text-gray-500">
+              <DollarSign className="mr-1.5 h-4 w-4 text-gray-400" />
+              Budget: ${campaign.budget}
+            </div>
+            <div className="flex items-center text-sm text-gray-500">
+              <Calendar className="mr-1.5 h-4 w-4 text-gray-400" />
+              {new Date(campaign.start_date).toLocaleDateString()} -{' '}
+              {new Date(campaign.end_date).toLocaleDateString()}
+            </div>
+            {campaignStatus.daysRemaining >= 0 && campaignStatus.dateStatus === 'active' && campaignStatus.daysRemaining > 0 && (
+              <div className="flex items-center text-sm text-amber-600">
+                <Clock className="mr-1.5 h-4 w-4 text-amber-400" />
+                {campaignStatus.daysRemaining === 1
+                  ? 'Ends tomorrow!'
+                  : `${campaignStatus.daysRemaining} days remaining`
+                }
+              </div>
+            )}
+            {campaign.target_location && (
+              <div className="flex items-center text-sm text-gray-500">
+                <MapPin className="mr-1.5 h-4 w-4 text-gray-400" />
+                {campaign.target_location}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {campaign.target_niche.map((niche) => (
+                <span
+                  key={niche}
+                  className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800"
+                >
+                  <Tag className="mr-1 h-3 w-3" />
+                  {niche}
+                </span>
+              ))}
+            </div>
+          </div>
+          
+          <div className="mt-4 space-y-2">
+            <button
+              onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}
+              className="w-full rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
+            >
+              View Details
+            </button>
+            
+            {applicationEligibility.canApply ? (
+              <button
+                onClick={() => {
+                  setSelectedCampaign(campaign)
+                  setShowApplyModal(true)
+                }}
+                className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              >
+                Apply Now
+              </button>
+            ) : (
+              <button
+                disabled
+                title={applicationEligibility.reason}
+                className="w-full rounded-md bg-gray-300 px-3 py-2 text-sm font-semibold text-gray-500 shadow-sm cursor-not-allowed"
+              >
+                {hasApplied ? 'Applied' : applicationEligibility.reason || 'Cannot Apply'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            Available Campaigns
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-gray-500">
+            Browse and apply to active campaigns from brands
+          </p>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CampaignCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   // Show message if user is not an influencer
@@ -162,85 +294,7 @@ export default function AvailableCampaigns() {
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {campaigns.map((campaign) => (
-          <div
-            key={campaign.id}
-            id={`campaign-${campaign.id}`}
-            className={`overflow-hidden rounded-lg bg-white shadow transition-all duration-300 ${
-              highlightCampaignId === campaign.id 
-                ? 'ring-2 ring-indigo-500 ring-opacity-50 shadow-lg' 
-                : ''
-            }`}
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between">
-                <h3 className="text-lg font-medium text-gray-900">
-                  {campaign.title}
-                </h3>
-                {highlightCampaignId === campaign.id && (
-                  <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-                    New
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 text-sm text-gray-500 line-clamp-2">
-                {campaign.description}
-              </p>
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center text-sm text-gray-500">
-                  <DollarSign className="mr-1.5 h-4 w-4 text-gray-400" />
-                  Budget: ${campaign.budget}
-                </div>
-                <div className="flex items-center text-sm text-gray-500">
-                  <Calendar className="mr-1.5 h-4 w-4 text-gray-400" />
-                  {new Date(campaign.start_date).toLocaleDateString()} -{' '}
-                  {new Date(campaign.end_date).toLocaleDateString()}
-                </div>
-                {campaign.target_location && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <MapPin className="mr-1.5 h-4 w-4 text-gray-400" />
-                    {campaign.target_location}
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {campaign.target_niche.map((niche) => (
-                    <span
-                      key={niche}
-                      className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800"
-                    >
-                      <Tag className="mr-1 h-3 w-3" />
-                      {niche}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                <button
-                  onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}
-                  className="w-full rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
-                >
-                  View Details
-                </button>
-                {appliedCampaigns.includes(campaign.id) ? (
-                  <button
-                    disabled
-                    className="w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm cursor-default"
-                  >
-                    Applied
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setSelectedCampaign(campaign)
-                      setShowApplyModal(true)
-                    }}
-                    className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                  >
-                    Apply Now
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          <CampaignCard campaign={campaign} />
         ))}
         {campaigns.length === 0 && (
           <div className="col-span-3 text-center py-12">
@@ -319,9 +373,17 @@ export default function AvailableCampaigns() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-sm cursor-pointer font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700p "
+                    disabled={submittingApplication}
+                    className="px-4 py-2 text-sm cursor-pointer font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    Submit Application
+                    {submittingApplication ? (
+                      <>
+                        <ButtonLoader />
+                        <span className="ml-2">Submitting...</span>
+                      </>
+                    ) : (
+                      'Submit Application'
+                    )}
                   </button>
                 </div>
               </form>

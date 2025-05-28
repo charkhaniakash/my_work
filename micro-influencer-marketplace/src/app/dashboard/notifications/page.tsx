@@ -6,6 +6,7 @@ import { useSupabase } from '@/lib/providers/supabase-provider'
 import { Bell, Check, Trash2, Filter, Calendar, MessageSquare, FileText, User, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
+import { NotificationSkeleton, TableRowSkeleton } from '@/components/loaders'
 
 type Notification = {
   id: string
@@ -445,9 +446,34 @@ export default function NotificationCenter() {
       {/* Notifications List */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {loading ? (
-          <div className="text-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading notifications...</p>
+          <div className="border-b">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                    <input
+                      type="checkbox"
+                      disabled
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Notification
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                    Time
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRowSkeleton key={i} columns={4} />
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : notifications.length > 0 ? (
           <>

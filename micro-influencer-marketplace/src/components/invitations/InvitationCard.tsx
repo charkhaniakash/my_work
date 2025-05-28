@@ -13,7 +13,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Calendar, Clock, DollarSign, MessageSquare, Check, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { toast } from 'sonner'
+import { toast } from 'react-hot-toast'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 import AcceptInvitationModal from './AcceptInvitationModal'
@@ -54,21 +54,25 @@ export default function InvitationCard({
   
 
   const handleDecline = async () => {
+    console.log('🚀 Starting invitation decline...', invitation.id)
+    
     // Get the current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     if (sessionError) {
-      console.error('Session error:', sessionError)
+      console.error('❌ Session error:', sessionError)
       toast.error('Authentication error')
       return
     }
     
     if (!session) {
+      console.error('❌ No session found')
       toast.error('You must be logged in to respond to invitations')
       router.push('/login')
       return
     }
     
+    console.log('✅ Session valid, declining invitation...')
     setIsLoading(true)
     try {
       const response = await fetch('/api/campaigns/invitations', {
@@ -83,41 +87,50 @@ export default function InvitationCard({
         })
       })
       
+      console.log('📡 Decline response:', response.status, response.ok)
+      
       const data = await response.json()
+      console.log('📦 Decline data:', data)
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to decline invitation')
       }
       
-      toast.success('Invitation Declined')
+      console.log('🎉 Invitation declined successfully')
+      toast.success('Invitation declined successfully')
       
       if (onStatusChange) {
         onStatusChange(invitation.id, 'declined')
       }
     } catch (error: any) {
-      console.error('Error declining invitation:', error)
-      toast.error(error.message || 'Something went wrong')
+      console.error('❌ Error declining invitation:', error)
+      toast.error(error.message || 'Failed to decline invitation')
     } finally {
       setIsLoading(false)
+      console.log('🏁 Decline process completed')
     }
   }
 
   const handleAccept = async (pitch: string, proposedRate: number) => {
+    console.log('🚀 Starting invitation acceptance...', invitation.id)
+
     // Get the current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     if (sessionError) {
-      console.error('Session error:', sessionError)
+      console.error('❌ Session error:', sessionError)
       toast.error('Authentication error')
       throw new Error('Authentication error')
     }
     
     if (!session) {
+      console.error('❌ No session found')
       toast.error('You must be logged in to respond to invitations')
       router.push('/login')
       throw new Error('Not authenticated')
     }
     
+    console.log('✅ Session valid, making API call...')
     setIsLoading(true)
     try {
       const response = await fetch('/api/campaigns/invitations', {
@@ -134,23 +147,61 @@ export default function InvitationCard({
         })
       })
       
+      console.log('📡 API response:', response.status, response.ok)
+      
       const data = await response.json()
+      console.log('📦 Response data:', data)
       
       if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 500 && data.error?.includes('already accepted')) {
+          console.log('✅ Handling already accepted case')
+          toast.success('Invitation accepted successfully! You can find this in your applications.')
+          if (onStatusChange) {
+            onStatusChange(invitation.id, 'accepted')
+          }
+          return
+        }
         throw new Error(data.error || 'Failed to accept invitation')
       }
       
-      toast.success('Invitation Accepted')
+      // Success case
+      const successMessage = data.message || 'Invitation Accepted Successfully'
+      console.log('🎉 Success:', successMessage)
+      toast.success(successMessage)
       
       if (onStatusChange) {
         onStatusChange(invitation.id, 'accepted')
       }
     } catch (error: any) {
-      console.error('Error accepting invitation:', error)
-      toast.error(error.message || 'Something went wrong')
+      console.error('❌ Error accepting invitation:', error)
+      
+      // Provide more specific error messages
+      let errorMessage = 'Something went wrong'
+      
+      if (error.message?.includes('already accepted')) {
+        errorMessage = 'This invitation has already been accepted. Check your applications page.'
+        console.log('✅ Updating UI for already accepted invitation')
+        // Still update the UI to reflect accepted status
+        if (onStatusChange) {
+          onStatusChange(invitation.id, 'accepted')
+        }
+      } else if (error.message?.includes('not found')) {
+        errorMessage = 'This invitation could not be found. It may have been removed.'
+      } else if (error.message?.includes('unauthorized') || error.message?.includes('not authorized')) {
+        errorMessage = 'You are not authorized to accept this invitation.'
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = 'Network error. Please check your connection and try again.'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      console.log('🔥 Showing error toast:', errorMessage)
+      toast.error(errorMessage)
       throw error
     } finally {
       setIsLoading(false)
+      console.log('🏁 Invitation acceptance process completed')
     }
   }
   

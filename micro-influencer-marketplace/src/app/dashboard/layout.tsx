@@ -13,6 +13,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import NotificationsDropdown from '@/components/NotificationsDropdown'
 import { AuthProvider } from '@/lib/auth-context'
 import Sidebar from '@/components/Sidebar'
+import { NavigationLoader } from '@/components/loaders'
 
 export default function DashboardLayout({
   children,
@@ -60,6 +61,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <NavigationLoader />
       {/* Mobile sidebar */}
       <div className="lg:hidden">
         <button

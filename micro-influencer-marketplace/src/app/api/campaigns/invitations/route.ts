@@ -298,41 +298,145 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Not authorized to update this invitation' }, { status: 403 })
     }
 
-    // Update the invitation status and custom message/rate if provided
-    const updateData: any = { 
-      status,
-      updated_at: new Date().toISOString()
-    }
-    
-    // If accepting and pitch/rate provided, update those fields
+    // Special handling for accepting invitations
     if (status === 'accepted') {
-      if (pitch) updateData.custom_message = pitch
-      if (proposedRate !== undefined) updateData.proposed_rate = proposedRate
+      try {
+        // Check if application already exists
+        const { data: existingApplication } = await supabase
+          .from('campaign_applications')
+          .select('id, status')
+          .eq('campaign_id', invitation.campaign_id)
+          .eq('influencer_id', invitation.influencer_id)
+          .maybeSingle()
+
+        if (existingApplication) {
+          // Application already exists - just update invitation status
+          const { data: updatedInvitation, error: updateError } = await supabase
+            .from('campaign_invitations')
+            .update({ 
+              status: 'accepted',
+              custom_message: pitch || invitation.custom_message,
+              proposed_rate: proposedRate !== undefined ? proposedRate : invitation.proposed_rate,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', invitationId)
+            .select()
+            .single()
+
+          if (updateError) {
+            console.error('Error updating invitation with existing application:', updateError)
+            return NextResponse.json({ error: 'Failed to update invitation' }, { status: 500 })
+          }
+
+          // Send notification
+          await createInvitationResponseNotificationAdmin(
+            invitation.brand_id,
+            user.id,
+            user.user_metadata?.full_name || 'An influencer',
+            invitation.campaign.title,
+            invitation.campaign.id,
+            'accepted'
+          )
+
+          return NextResponse.json({ 
+            invitation: updatedInvitation,
+            message: 'Invitation accepted successfully'
+          })
+        }
+
+        // No existing application - create one manually and update invitation
+        // First, create the application
+        const { data: newApplication, error: appError } = await supabase
+          .from('campaign_applications')
+          .insert({
+            campaign_id: invitation.campaign_id,
+            influencer_id: invitation.influencer_id,
+            brand_id: invitation.brand_id,
+            status: 'accepted',
+            pitch: pitch || 'Accepted invitation',
+            proposed_rate: proposedRate || 0
+          })
+          .select()
+          .single()
+
+        if (appError) {
+          // If application creation fails due to duplicate, that's okay
+          if (appError.code === '23505') { // Unique constraint violation
+            console.log('Application already exists, continuing with invitation update...')
+          } else {
+            console.error('Error creating application:', appError)
+            return NextResponse.json({ error: 'Failed to create application' }, { status: 500 })
+          }
+        }
+
+        // Update invitation status
+        const { data: updatedInvitation, error: updateError } = await supabase
+          .from('campaign_invitations')
+          .update({ 
+            status: 'accepted',
+            custom_message: pitch || invitation.custom_message,
+            proposed_rate: proposedRate !== undefined ? proposedRate : invitation.proposed_rate,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', invitationId)
+          .select()
+          .single()
+
+        if (updateError) {
+          console.error('Error updating invitation:', updateError)
+          return NextResponse.json({ error: 'Failed to update invitation' }, { status: 500 })
+        }
+
+        // Send notification
+        await createInvitationResponseNotificationAdmin(
+          invitation.brand_id,
+          user.id,
+          user.user_metadata?.full_name || 'An influencer',
+          invitation.campaign.title,
+          invitation.campaign.id,
+          'accepted'
+        )
+
+        return NextResponse.json({ 
+          invitation: updatedInvitation,
+          message: 'Invitation accepted successfully'
+        })
+
+      } catch (error: any) {
+        console.error('Error in invitation acceptance:', error)
+        return NextResponse.json({ 
+          error: 'Failed to accept invitation' 
+        }, { status: 500 })
+      }
+    } else {
+      // For declining invitations, simple update
+      const { data: updatedInvitation, error: updateError } = await supabase
+        .from('campaign_invitations')
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', invitationId)
+        .select()
+        .single()
+
+      if (updateError) {
+        console.error('Error updating invitation:', updateError)
+        return NextResponse.json({ error: 'Failed to update invitation' }, { status: 500 })
+      }
+
+      // Send notification
+      await createInvitationResponseNotificationAdmin(
+        invitation.brand_id,
+        user.id,
+        user.user_metadata?.full_name || 'An influencer',
+        invitation.campaign.title,
+        invitation.campaign.id,
+        status
+      )
+
+      return NextResponse.json({ invitation: updatedInvitation })
     }
-    
-    const { data: updatedInvitation, error: updateError } = await supabase
-      .from('campaign_invitations')
-      .update(updateData)
-      .eq('id', invitationId)
-      .select()
-      .single()
-
-    if (updateError) {
-      console.error('Error updating invitation:', updateError)
-      return NextResponse.json({ error: 'Failed to update invitation' }, { status: 500 })
-    }
-
-    // Send notification to the brand
-    await createInvitationResponseNotificationAdmin(
-      invitation.brand_id,
-      user.id,
-      user.user_metadata?.full_name || 'An influencer',
-      invitation.campaign.title,
-      invitation.campaign.id,
-      status
-    )
-
-    return NextResponse.json({ invitation: updatedInvitation })
   } catch (error: any) {
     console.error('Error updating invitation:', error)
     return NextResponse.json(

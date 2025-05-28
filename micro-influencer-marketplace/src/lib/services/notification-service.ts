@@ -239,7 +239,7 @@ export async function createInvitationNotificationAdmin(
         title: 'New Campaign Invitation',
         content: `${senderName} has invited you to join their campaign "${campaignTitle}"`,
         type: 'invitation',
-        link: `/dashboard/invitations`,
+        link: `/dashboard/influencer/invitations`,
         related_id: campaignId,
         related_type: 'campaign',
         is_read: false

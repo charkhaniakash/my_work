@@ -4,7 +4,7 @@ import { DashboardHeader } from '@/components/dashboard-header'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { RecentTransactions } from '@/components/payments/RecentTransactions'
-import { CardSkeleton } from '@/components/loaders/card-skeleton'
+import { CardSkeleton, StatCardSkeleton } from '@/components/loaders'
 import RecommendedCampaigns from '@/components/campaigns/RecommendedCampaigns'
 import { RecentCampaigns } from '@/components/campaigns/RecentCampaigns'
 import { ClientOnly } from '@/components/client-only'
@@ -161,42 +161,41 @@ function RoleBasedMainContent() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Stats</h3>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-green-600">Total Earnings</p>
-                          <div className="text-2xl font-bold text-green-700 mt-1">
-                            {loading ? (
-                              <div className="animate-pulse bg-green-200 h-8 w-16 rounded"></div>
-                            ) : (
-                              `$${stats.monthlyEarnings.toLocaleString()}`
-                            )}
-                          </div>
-                        </div>
-                        <div className="bg-green-100 p-3 rounded-lg">
-                          <DollarSign className="h-6 w-6 text-green-600" />
-                        </div>
-                      </div>
+                  {loading ? (
+                    <div className="grid grid-cols-2 gap-6">
+                      <StatCardSkeleton />
+                      <StatCardSkeleton />
                     </div>
-                    <Link href="/dashboard/applications" className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 block hover:from-blue-100 hover:to-blue-200 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-blue-600">Applications</p>
-                          <div className="text-2xl font-bold text-blue-700 mt-1">
-                            {loading ? (
-                              <div className="animate-pulse bg-blue-200 h-8 w-16 rounded"></div>
-                            ) : (
-                              stats.totalApplications
-                            )}
+                  ) : (
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-green-600">Total Earnings</p>
+                            <div className="text-2xl font-bold text-green-700 mt-1">
+                              ${stats.monthlyEarnings.toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="bg-green-100 p-3 rounded-lg">
+                            <DollarSign className="h-6 w-6 text-green-600" />
                           </div>
                         </div>
-                        <div className="bg-blue-100 p-3 rounded-lg">
-                          <Users className="h-6 w-6 text-blue-600" />
-                        </div>
                       </div>
-                    </Link>
-                  </div>
+                      <Link href="/dashboard/applications" className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 block hover:from-blue-100 hover:to-blue-200 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-blue-600">Applications</p>
+                            <div className="text-2xl font-bold text-blue-700 mt-1">
+                              {stats.totalApplications}
+                            </div>
+                          </div>
+                          <div className="bg-blue-100 p-3 rounded-lg">
+                            <Users className="h-6 w-6 text-blue-600" />
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -211,42 +210,41 @@ function RoleBasedMainContent() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Stats</h3>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-purple-600">Active Campaigns</p>
-                          <div className="text-2xl font-bold text-purple-700 mt-1">
-                            {loading ? (
-                              <div className="animate-pulse bg-purple-200 h-8 w-16 rounded"></div>
-                            ) : (
-                              stats.activeCampaigns
-                            )}
+                  {loading ? (
+                    <div className="grid grid-cols-2 gap-6">
+                      <StatCardSkeleton />
+                      <StatCardSkeleton />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-purple-600">Active Campaigns</p>
+                            <div className="text-2xl font-bold text-purple-700 mt-1">
+                              {stats.activeCampaigns}
+                            </div>
+                          </div>
+                          <div className="bg-purple-100 p-3 rounded-lg">
+                            <TrendingUp className="h-6 w-6 text-purple-600" />
                           </div>
                         </div>
-                        <div className="bg-purple-100 p-3 rounded-lg">
-                          <TrendingUp className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-indigo-600">Total Spent</p>
+                            <div className="text-2xl font-bold text-indigo-700 mt-1">
+                              ${stats.totalSpent.toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="bg-indigo-100 p-3 rounded-lg">
+                            <BarChart3 className="h-6 w-6 text-indigo-600" />
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-indigo-600">Total Spent</p>
-                          <div className="text-2xl font-bold text-indigo-700 mt-1">
-                            {loading ? (
-                              <div className="animate-pulse bg-indigo-200 h-8 w-24 rounded"></div>
-                            ) : (
-                              `$${stats.totalSpent.toLocaleString()}`
-                            )}
-                          </div>
-                        </div>
-                        <div className="bg-indigo-100 p-3 rounded-lg">
-                          <BarChart3 className="h-6 w-6 text-indigo-600" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </>

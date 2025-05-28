@@ -20,6 +20,7 @@ import { toast } from 'react-hot-toast'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ApplicationCardSkeleton, StatCardSkeleton } from '@/components/loaders'
 
 interface ApplicationWithCampaign {
   id: string
@@ -223,8 +224,30 @@ export default function ApplicationsPage() {
           heading="My Applications"
           text="Track your campaign applications and their status"
         />
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Stats Overview Loading */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+
+          {/* Applications List Loading */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Application History</CardTitle>
+              <CardDescription>
+                View and track all your campaign applications
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <ApplicationCardSkeleton key={i} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
