@@ -34,13 +34,26 @@ export default function NewConversation({
   }
 
   const startConversation = async (otherUser: any) => {
+
+
+    console.log("Current auth user ID from useSupabase:", user?.id);
+    console.log("Insert payload:", {
+      brand_id: user?.user_metadata?.role === 'brand' ? user?.id : otherUser.id,
+      influencer_id: user?.user_metadata?.role === 'brand' ? otherUser.id : user?.id
+    });
+    
+
+
     try {
       // Check if conversation already exists
       const { data: existingConversation, error: checkError } = await supabase
-        .from('conversations')
-        .select('id')
-        .or(`and(brand_id.eq.${user?.id},influencer_id.eq.${otherUser.id}),and(brand_id.eq.${otherUser.id},influencer_id.eq.${user?.id})`)
-        .single()
+      .from('conversations')
+      .select('id')
+      .or(`and(brand_id.eq.${user?.id},influencer_id.eq.${otherUser.id}),and(brand_id.eq.${otherUser.id},influencer_id.eq.${user?.id})`)
+      .maybeSingle();
+      
+      
+    
 
       if (checkError && checkError.code !== 'PGRST116') throw checkError
 
@@ -50,15 +63,21 @@ export default function NewConversation({
         return
       }
 
-      // Create new conversation
-      const { error } = await supabase
-        .from('conversations')
-        .insert({
+      // // Create new conversation
+      // const { error } = await supabase
+      //   .from('conversations')
+      //   .insert({
+      //     brand_id: user?.user_metadata?.role === 'brand' ? user?.id : otherUser.id,
+      //     influencer_id: user?.user_metadata?.role === 'brand' ? otherUser.id : user?.id
+      //   })
+
+        await supabase.from('conversations').insert({
           brand_id: user?.user_metadata?.role === 'brand' ? user?.id : otherUser.id,
           influencer_id: user?.user_metadata?.role === 'brand' ? otherUser.id : user?.id
-        })
+        });
+        
 
-      if (error) throw error
+      // if (error) throw error
 
       toast.success('Conversation started')
       onConversationCreated(otherUser)

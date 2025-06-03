@@ -159,6 +159,7 @@ export default function NotificationCenter() {
     
     // Navigate if there's a link
     if (notification.link) {
+      console.log(`Navigating to ${notification.link}`)
       router.push(notification.link)
     }
   }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { Send, Users, Building2, UserPlus, Plus, Search } from 'lucide-react'
@@ -10,6 +10,7 @@ import { useSupabase } from '@/lib/providers/supabase-provider'
 import { User as DBUser } from '@/lib/types/database'
 import { createMessageNotification } from '@/lib/services/notification-service'
 import { MessageSkeleton, ButtonLoader } from '@/components/loaders'
+import { RealtimeChannel } from '@supabase/supabase-js'
 
 type User = DBUser;
 
@@ -31,6 +32,7 @@ interface Message {
 export default function Messages() {
   const { user, isLoading: userLoading } = useSupabase()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const contactId = searchParams?.get('contact')
   const supabase = createClientComponentClient()
   const [selectedContact, setSelectedContact] = useState<User | null>(null)
@@ -38,85 +40,246 @@ export default function Messages() {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
-  const [showNewMessageForm, setShowNewMessageForm] = useState(false)
-  const [email, setEmail] = useState('')
-  const [userSearchResults, setUserSearchResults] = useState<User[]>([])
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
   const [showNewConversation, setShowNewConversation] = useState(false)
   const [modalUserSearchResults, setModalUserSearchResults] = useState<User[]>([])
   const [modalLoading, setModalLoading] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  // Add effect to handle contact parameter from URL
-  useEffect(() => {
-    if (contactId && user) {
-      loadContact(contactId)
-    }
-  }, [contactId, user])
-
-  console.log("contacts" , contacts)
-  useEffect(() => {
-    if (!userLoading && user) {
-      loadContacts()
-    }
-  }, [userLoading, user])
-
-  useEffect(() => {
-    if (selectedContact) {
-      loadMessages()
-      const cleanup = subscribeToMessages()
-      return () => {
-        cleanup()
-      }
-    }
-  }, [selectedContact])
-
-  useEffect(() => {
-    if (showNewMessageForm) {
-      loadAllUsers()
-    }
-  }, [showNewMessageForm])
-
+  // Load contacts (users who have exchanged messages with current user)
   const loadContacts = async () => {
     if (!user) return
     try {
-      // Get all users who have exchanged messages with the current user
       const { data: messageUsers, error: messageError } = await supabase
         .from('messages')
         .select('sender_id, receiver_id')
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-
-        if (messageError) throw messageError
-
-      // Get unique user IDs from messages
+      if (messageError) throw messageError
       const userIds = new Set<string>()
       messageUsers?.forEach(msg => {
         if (msg.sender_id !== user.id) userIds.add(msg.sender_id)
         if (msg.receiver_id !== user.id) userIds.add(msg.receiver_id)
       })
-
-      // Fetch user details for all contacts
-      // if (userIds.size > 0) {
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('*')
-          .in('id', Array.from(userIds))
-
-          console.log("users" , users)
-
-        if (usersError) throw usersError
-        setContacts(users || [])
-      // }
-    } catch (error) {
-      console.error('Error loading contacts:', error)
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', Array.from(userIds))
+      if (usersError) throw usersError
+      setContacts(users || [])
+    } catch {
       toast.error('Failed to load contacts')
     } finally {
       setLoading(false)
     }
   }
 
+  // Find or create a conversation between user and contact
+  const getOrCreateConversation = async (contact: User) => {
+    if (!user) return null
+    const { data: existingConversation } = await supabase
+      .from('conversations')
+      .select('*')
+      .or(`and(brand_id.eq.${user.id},influencer_id.eq.${contact.id}),and(brand_id.eq.${contact.id},influencer_id.eq.${user.id})`)
+      .maybeSingle()
+    if (existingConversation) return existingConversation
+    const isBrand = user.role === 'brand'
+    const { data: newConversation, error: createError } = await supabase
+      .from('conversations')
+      .insert({
+        brand_id: isBrand ? user.id : contact.id,
+        influencer_id: isBrand ? contact.id : user.id,
+        campaign_id: null
+      })
+      .select('*')
+      .maybeSingle()
+    if (createError) throw createError
+    return newConversation
+  }
+
+  // Load messages for the selected conversation
+  const loadMessages = async () => {
+    if (!selectedContact || !user) return
+    try {
+      setLoading(true)
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`and(brand_id.eq.${user.id},influencer_id.eq.${selectedContact.id}),and(brand_id.eq.${selectedContact.id},influencer_id.eq.${user.id})`)
+        .single()
+      if (conversation) {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversation.id)
+          .order('created_at', { ascending: true })
+        if (error) throw error
+        setMessages(data || [])
+      } else {
+        setMessages([])
+      }
+    } catch {
+      toast.error('Failed to load messages')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Send a message
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedContact || !newMessage.trim() || !user) return
+    try {
+      setSendingMessage(true)
+      // Find or create conversation
+      let conversationId = null
+      const { data: existingConversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`and(brand_id.eq.${user.id},influencer_id.eq.${selectedContact.id}),and(brand_id.eq.${selectedContact.id},influencer_id.eq.${user.id})`)
+        .maybeSingle()
+      if (existingConversation) {
+        conversationId = existingConversation.id
+      } else {
+        const isBrand = user.role === 'brand'
+        const { data: newConversation, error: createError } = await supabase
+          .from('conversations')
+          .insert({
+            brand_id: isBrand ? user.id : selectedContact.id,
+            influencer_id: isBrand ? selectedContact.id : user.id,
+            campaign_id: null
+          })
+          .select('id')
+          .maybeSingle()
+        if (createError) throw createError
+        conversationId = newConversation?.id
+      }
+      // Insert message
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          receiver_id: selectedContact.id,
+          content: newMessage.trim(),
+          campaign_id: null
+        })
+        .select()
+        .single()
+      if (error) throw error
+      // Optimistically add message to UI
+      setMessages(prev => prev.some(msg => msg.id === data.id) ? prev : [...prev, data])
+      await createMessageNotification(
+        selectedContact.id,
+        user.user_metadata?.full_name || user.email,
+        newMessage.trim(),
+        user.id,
+        selectedContact.id
+      )
+      setNewMessage('')
+    } catch {
+      toast.error('Failed to send message')
+    } finally {
+      setSendingMessage(false)
+    }
+  }
+
+  // Real-time subscription for current conversation
+  useEffect(() => {
+    if (!selectedContact || !user) return
+    let channel: RealtimeChannel | null = null
+    let isMounted = true
+    const setup = async () => {
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`and(brand_id.eq.${user.id},influencer_id.eq.${selectedContact.id}),and(brand_id.eq.${selectedContact.id},influencer_id.eq.${user.id})`)
+        .single()
+      if (!conversation) return
+      channel = supabase
+        .channel('messages')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${conversation.id}`
+          },
+          (payload) => {
+            const newMessage = payload.new as Message
+            setMessages(prev => prev.some(msg => msg.id === newMessage.id) ? prev : [...prev, newMessage])
+          }
+        )
+        .subscribe()
+    }
+    setup()
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+      isMounted = false
+    }
+  }, [selectedContact, user])
+
+  // Global real-time subscription for notifications and new contacts
+  useEffect(() => {
+    if (!user) return
+    let globalChannel: RealtimeChannel | null = null
+    const setupGlobalMessageListener = () => {
+      globalChannel = supabase
+        .channel(`user-messages-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `receiver_id=eq.${user.id}`
+          },
+          (payload) => {
+            const newMessage = payload.new as Message
+            if (newMessage.sender_id !== user.id) {
+              loadContacts()
+              if (selectedContact?.id === newMessage.sender_id) {
+                setMessages(prev => prev.some(msg => msg.id === newMessage.id) ? prev : [...prev, newMessage])
+              }
+              if (!selectedContact || selectedContact.id !== newMessage.sender_id) {
+                supabase
+                  .from('users')
+                  .select('full_name')
+                  .eq('id', newMessage.sender_id)
+                  .single()
+                  .then(({ data: sender }) => {
+                    if (sender) {
+                      toast.success(`New message from ${sender.full_name}: ${newMessage.content.substring(0, 50)}...`)
+                    }
+                  })
+              }
+            }
+          }
+        )
+        .subscribe()
+    }
+    setupGlobalMessageListener()
+    return () => {
+      if (globalChannel) supabase.removeChannel(globalChannel)
+    }
+  }, [user?.id, selectedContact?.id])
+
+  // Load contacts on mount and when user changes
+  useEffect(() => {
+    if (!userLoading && user) loadContacts()
+  }, [userLoading, user])
+
+  // Load contact from URL param
+  useEffect(() => {
+    if (contactId && user) loadContact(contactId)
+  }, [contactId, user])
+
+  // Load messages when selectedContact changes
+  useEffect(() => {
+    if (selectedContact) loadMessages()
+  }, [selectedContact])
+
+  // Load a single contact by ID
   const loadContact = async (contactId: string) => {
     try {
       const { data: contact, error } = await supabase
@@ -124,7 +287,6 @@ export default function Messages() {
         .select('*')
         .eq('id', contactId)
         .single()
-
       if (error) throw error
       if (contact) {
         setSelectedContact(contact)
@@ -132,186 +294,9 @@ export default function Messages() {
           setContacts(prev => [...prev, contact])
         }
       }
-    } catch (error) {
-      console.error('Error loading contact:', error)
+    } catch {
       toast.error('Failed to load contact')
     }
-  }
-
-  const loadMessages = async () => {
-    if (!selectedContact || !user) return
-
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedContact.id}),and(sender_id.eq.${selectedContact.id},receiver_id.eq.${user.id})`)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-      setMessages(data || [])
-    } catch (error) {
-      console.error('Error loading messages:', error)
-      toast.error('Failed to load messages')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedContact || !newMessage.trim() || !user) return
-
-    try {
-      setSendingMessage(true)
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: user.id,
-          receiver_id: selectedContact.id,
-          content: newMessage.trim()
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      
-      // Create notification for message recipient
-      await createMessageNotification(
-        selectedContact.id,
-        user.user_metadata?.full_name || user.email,
-        newMessage.trim(),
-        data.id
-      )
-      
-      setNewMessage('')
-    } catch (error) {
-      console.error('Error sending message:', error)
-      toast.error('Failed to send message')
-    } finally {
-      setSendingMessage(false)
-    }
-  }
-
-  const subscribeToMessages = () => {
-    if (!selectedContact || !user) return () => {}
-
-    const channel = supabase
-      .channel('messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `sender_id=eq.${selectedContact.id},receiver_id=eq.${user.id}`
-        },
-        (payload) => {
-          setMessages(prev => [...prev, payload.new as Message])
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }
-
-  const loadAllUsers = async () => {
-    if (!user) return
-    try {
-      setLoading(true)
-      const { data: users, error } = await supabase
-        .from('users')
-        .select('*')
-        .neq('id', user.id)
-        .neq('role', user.role) // Only show users with different roles
-        .limit(20)
-
-      if (error) throw error
-
-      // Filter out existing contacts
-      const filteredUsers = (users || []).filter(u => 
-        !contacts.some(c => c.id === u.id)
-      )
-      
-      setUserSearchResults(filteredUsers)
-    } catch (error) {
-      console.error('Error loading users:', error)
-      toast.error('Failed to load users')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const searchUsers = async (searchTerm: string) => {
-    if (!user) return
-    try {
-      setLoading(true)
-      
-      let query = supabase
-        .from('users')
-        .select('*')
-        .neq('id', user.id)
-        .neq('role', user.role) // Only show users with different roles
-      
-      if (searchTerm.trim()) {
-        query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-      }
-      
-      query = query.limit(10)
-      
-      const { data: users, error } = await query
-
-      if (error) throw error
-
-      // Filter out existing contacts
-      const filteredUsers = (users || []).filter(u => 
-        !contacts.some(c => c.id === u.id)
-      )
-      
-      setUserSearchResults(filteredUsers)
-    } catch (error) {
-      console.error('Error searching users:', error)
-      toast.error('Failed to search users')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const startConversation = (contact: User) => {
-    setSelectedContact(contact)
-    setContacts(prev => [...prev, contact])
-    setShowNewMessageForm(false)
-    setEmail('')
-    setUserSearchResults([])
-  }
-
-  const loadConversations = async () => {
-    try {
-      const { data: conversationsData, error: conversationsError } = await supabase
-        .from('conversations')
-        .select('*')
-
-      if (conversationsError) throw conversationsError
-
-      setConversations(conversationsData || [])
-    } catch (error) {
-      console.error('Error loading conversations:', error)
-      toast.error('Failed to load conversations')
-    }
-  }
-
-  // Add filtered contacts based on search term
-  const filteredContacts = contacts.filter(contact => 
-    contact.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.email.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  // Update the search input handler
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value)
   }
 
   // Modal-specific user search for NewConversation
@@ -332,18 +317,24 @@ export default function Messages() {
       if (error) throw error
       const filteredUsers = (users || []).filter(u => !contacts.some(c => c.id === u.id))
       setModalUserSearchResults(filteredUsers)
-    } catch (error) {
-      console.error('Error searching users:', error)
+    } catch {
       toast.error('Failed to search users')
     } finally {
       setModalLoading(false)
     }
   }
 
-  // When opening the modal, load initial users for modal only
-  const openNewConversation = () => {
-    setShowNewConversation(true)
-    modalSearchUsers('')
+  // Filtered contacts based on search term
+  const filteredContacts = contacts.filter(contact =>
+    contact.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.email.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Handle contact selection
+  const handleSelectContact = async (contact: User) => {
+    setSelectedContact(contact)
+    router.push(`/dashboard/messages?contact=${contact.id}`)
+    await getOrCreateConversation(contact)
   }
 
   if (userLoading || loading || !user) {
@@ -396,7 +387,7 @@ export default function Messages() {
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
             <button
-              onClick={openNewConversation}
+              onClick={() => setShowNewConversation(true)}
               className="p-1 rounded-full hover:bg-gray-100"
               title="New conversation"
             >
@@ -409,7 +400,7 @@ export default function Messages() {
               type="text"
               placeholder="Search conversations"
               value={searchTerm}
-              onChange={handleSearchChange}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
             />
           </div>
@@ -424,25 +415,25 @@ export default function Messages() {
                   className={`cursor-pointer hover:bg-gray-50 ${
                     selectedContact?.id === contact.id ? 'bg-gray-50' : ''
                   }`}
-                  onClick={() => setSelectedContact(contact)}
+                  onClick={() => handleSelectContact(contact)}
                 >
                   <div className="flex items-center px-4 py-4 sm:px-6">
                     <div className="flex min-w-0 flex-1 items-center">
-                    <div className="flex-shrink-0">
+                      <div className="flex-shrink-0">
                         {contact.avatar_url ? (
                           <img
                             className="h-12 w-12 rounded-full"
                             src={contact.avatar_url}
                             alt={contact.full_name}
-                        />
-                      ) : (
+                          />
+                        ) : (
                           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
                             {contact.role === 'brand' ? (
                               <Building2 className="h-6 w-6 text-gray-400" />
                             ) : (
                               <Users className="h-6 w-6 text-gray-400" />
-                      )}
-                    </div>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1 px-4">
@@ -451,8 +442,8 @@ export default function Messages() {
                         </p>
                         <p className="truncate text-sm text-gray-500">
                           {contact.role}
-                      </p>
-                    </div>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -576,7 +567,7 @@ export default function Messages() {
                 Select a contact to start messaging or create a new conversation.
               </p>
               <button
-                onClick={() => setShowNewMessageForm(true)}
+                onClick={() => setShowNewConversation(true)}
                 className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
               >
                 <UserPlus className="h-4 w-4 mr-2" />

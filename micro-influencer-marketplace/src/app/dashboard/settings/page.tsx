@@ -50,6 +50,8 @@ export default function Settings() {
   })
   const supabase = createClientComponentClient()
 
+
+  console.log("formDataformDataformData")
   useEffect(() => {
     if (!userLoading && user) {
       loadProfile()
@@ -60,33 +62,74 @@ export default function Settings() {
   const loadProfile = async () => {
     if (!user) return
     try {
+      console.log('Loading profile for user:', user.id)
+      
       // Load user data
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (userError) throw userError
+      if (userError) {
+        console.error('Error loading user data:', userError)
+        throw userError
+      }
+
+      console.log('Loaded user data:', userData)
 
       // Load profile data based on role
       const table = user.user_metadata?.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
+      console.log('Loading from table:', table)
+
       const { data: profileData, error: profileError } = await supabase
         .from(table)
         .select('*')
         .eq('user_id', user.id)
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-      if (profileError && profileError.code !== 'PGRST116') throw profileError
+      if (profileError) {
+        if (profileError.code === 'PGRST116') {
+          console.log('No profile found, will be created on save')
+        } else {
+          console.error('Error loading profile data:', profileError)
+          throw profileError
+        }
+      }
+
+      console.log('Loaded profile data:', profileData)
+
+      // Combine the data
+      const combinedData = {
+        full_name: userData?.full_name || '',
+        email: userData?.email || '',
+        avatar_url: userData?.avatar_url || '',
+        // Brand specific fields
+        company_name: profileData?.company_name || '',
+        industry: profileData?.industry || '',
+        company_size: profileData?.company_size || '',
+        location: profileData?.location || '',
+        website: profileData?.website || '',
+        description: profileData?.description || '',
+        budget_range: profileData?.budget_range || '',
+        // Influencer specific fields
+        bio: profileData?.bio || '',
+        niche: profileData?.niche || '',
+        audience_size: profileData?.audience_size || '',
+        engagement_rate: profileData?.engagement_rate || '',
+        preferred_categories: profileData?.preferred_categories || '',
+        social_links: profileData?.social_links || '',
+        content_types: profileData?.content_types || '',
+        rate_card: profileData?.rate_card || ''
+      }
+
+      console.log('Setting form data:', combinedData)
 
       setProfile(profileData)
-      setFormData({
-        ...formData,
-        full_name: userData.full_name || '',
-        email: userData.email || '',
-        avatar_url: userData.avatar_url || '',
-        ...(profileData || {})
-      })
+      setFormData(combinedData)
+
     } catch (error) {
       console.error('Error loading profile:', error)
       toast.error('Failed to load profile')
@@ -124,6 +167,7 @@ export default function Settings() {
     if (!user) return
     try {
       setSaving(true)
+      console.log('Saving profile with data:', formData)
 
       // Update user data
       const { error: userError } = await supabase
@@ -134,12 +178,16 @@ export default function Settings() {
         })
         .eq('id', user.id)
 
-      if (userError) throw userError
+      if (userError) {
+        console.error('Error updating user:', userError)
+        throw userError
+      }
 
-      // Update profile data
+      // Update or create profile data
       const table = user.user_metadata?.role === 'brand' ? 'brand_profiles' : 'influencer_profiles'
       const profileData = user.user_metadata?.role === 'brand'
         ? {
+            user_id: user.id,
             company_name: formData.company_name,
             industry: formData.industry,
             company_size: formData.company_size,
@@ -149,6 +197,7 @@ export default function Settings() {
             budget_range: formData.budget_range
           }
         : {
+            user_id: user.id,
             bio: formData.bio,
             niche: formData.niche,
             audience_size: formData.audience_size,
@@ -159,12 +208,54 @@ export default function Settings() {
             rate_card: formData.rate_card
           }
 
-      const { error: profileError } = await supabase
-        .from(table)
-        .update(profileData)
-        .eq('user_id', user.id)
+      console.log('Saving profile data:', profileData)
 
-      if (profileError) throw profileError
+      // First check if profile exists
+      const { data: existingProfiles, error: profileQueryError } = await supabase
+        .from(table)
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (profileQueryError) {
+        console.error('Error checking existing profile:', profileQueryError)
+        throw profileQueryError
+      }
+
+      let savedProfile
+      if (existingProfiles && existingProfiles.length > 0) {
+        // Update the most recent profile
+        console.log('Updating existing profile with ID:', existingProfiles[0].id)
+        const { data: updateData, error: updateError } = await supabase
+          .from(table)
+          .update(profileData)
+          .eq('id', existingProfiles[0].id)
+          .select()
+          .single()
+
+        if (updateError) {
+          console.error('Error updating profile:', updateError)
+          throw updateError
+        }
+        savedProfile = updateData
+        console.log('Updated profile:', updateData)
+      } else {
+        // Create new profile
+        console.log('Creating new profile')
+        const { data: insertData, error: insertError } = await supabase
+          .from(table)
+          .insert([profileData])
+          .select()
+          .single()
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError)
+          throw insertError
+        }
+        savedProfile = insertData
+        console.log('Created new profile:', insertData)
+      }
 
       // Update notification preferences
       const { success, error: prefsError } = await updateNotificationPreferences(
@@ -176,6 +267,9 @@ export default function Settings() {
         console.error('Error updating notification preferences:', prefsError)
       }
 
+      // Reload the profile to ensure we have the latest data
+      await loadProfile()
+      
       toast.success('Profile updated successfully')
     } catch (error) {
       console.error('Error updating profile:', error)
@@ -191,22 +285,50 @@ export default function Settings() {
       if (!file || !user) return
 
       const fileExt = file.name.split('.').pop()
-      const filePath = `${user.id}-${Math.random()}.${fileExt}`
+      const fileName = `${user.id}/${Math.random()}.${fileExt}`
 
-      const { error: uploadError } = await supabase.storage
+      // Upload the file
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Upload error details:', uploadError)
+        throw uploadError
+      }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath)
+      // Get the public URL using the proper method
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('avatars').getPublicUrl(fileName)
 
-      setFormData(prev => ({ ...prev, avatar_url: publicUrl }))
-    } catch (error) {
+      // Ensure the URL is using the correct format
+      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const finalUrl = publicUrl.replace('undefined', baseUrl || '')
+      
+      console.log('Generated public URL:', finalUrl)
+
+      // Update the user's avatar_url in the database immediately
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar_url: finalUrl })
+        .eq('id', user.id)
+
+      if (updateError) {
+        console.error('Error updating avatar URL:', updateError)
+        throw updateError
+      }
+
+      // Update the form data with the new URL
+      setFormData(prev => ({ ...prev, avatar_url: finalUrl }))
+      
+      toast.success('Avatar uploaded and saved successfully')
+    } catch (error: any) {
       console.error('Error uploading avatar:', error)
-      toast.error('Failed to upload avatar')
+      toast.error(`Failed to upload avatar: ${error?.message || 'Unknown error'}`)
     }
   }
 

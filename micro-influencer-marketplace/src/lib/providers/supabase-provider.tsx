@@ -66,24 +66,35 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   // Handle page visibility change
   useEffect(() => {
+    let lastCheck = Date.now()
+    const minInterval = 5000 // Minimum 5 seconds between checks
+
     const handleVisibilityChange = async () => {
       if (!document.hidden) {
-        console.log('SupabaseProvider: Page became visible, refreshing session...')
-        try {
-          const { data: { session }, error } = await supabase.auth.getSession()
-          if (!error && session) {
-            setSession(session)
-            setUser(session.user)
+        // Only refresh if enough time has passed since last check
+        const now = Date.now()
+        if (now - lastCheck >= minInterval) {
+          console.log('SupabaseProvider: Page became visible, refreshing session...')
+          try {
+            const { data: { session: newSession }, error } = await supabase.auth.getSession()
+            if (!error && newSession) {
+              // Only update state if session has changed
+              if (JSON.stringify(newSession) !== JSON.stringify(session)) {
+                setSession(newSession)
+                setUser(newSession.user)
+              }
+            }
+          } catch (error) {
+            console.error('SupabaseProvider: Error refreshing session on visibility change:', error)
           }
-        } catch (error) {
-          console.error('SupabaseProvider: Error refreshing session on visibility change:', error)
+          lastCheck = now
         }
       }
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [supabase])
+  }, [supabase, session])
 
   const value = {
     user,

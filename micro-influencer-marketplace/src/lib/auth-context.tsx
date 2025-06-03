@@ -65,8 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           router.push('/auth/sign-in')
         }
         
-        // Refresh the page to update server-side auth state
-        router.refresh()
+        // Only refresh if the session state actually changed
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          router.refresh()
+        }
       }
     )
 

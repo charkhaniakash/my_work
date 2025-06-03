@@ -33,10 +33,20 @@ export const createNotification = async ({
     if (type === 'message' || type === 'application' || type === 'campaign') {
       const preferences = await getNotificationPreferences(userId);
       
+      // Default preferences if none exist
+      const defaultPreferences = {
+        messages: true,
+        applications: true,
+        campaigns: true
+      };
+
+      // Use preferences if they exist, otherwise use defaults
+      const userPreferences = preferences || defaultPreferences;
+      
       const preferenceType = type === 'message' ? 'messages' : 
                             type === 'application' ? 'applications' : 'campaigns';
       
-      if (!preferences[preferenceType]) {
+      if (!userPreferences[preferenceType]) {
         console.log(`Notification of type ${type} disabled by user preferences for ${userId}`);
         return { data: null, error: null, skipped: true };
       }
@@ -72,15 +82,32 @@ export const createNotification = async ({
 
 // Helper functions for common notification types
 
-export const createMessageNotification = async (userId: string, senderName: string, messageContent: string, conversationId: string) => {
+export const createMessageNotification = async (
+  recipientId: string, 
+  senderName: string, 
+  messageContent: string, 
+  senderId: string,
+  receiverId: string
+) => {
+  console.log("Message notification details:", {
+    recipientId,
+    senderName,
+    senderId,
+    receiverId
+  });
+
+  // The contact ID in the link should be the other person in the conversation
+  // If the recipient is the sender, use receiver_id; if recipient is the receiver, use sender_id
+  const contactId = recipientId === senderId ? receiverId : senderId;
+
   return createNotification({
-    userId,
+    userId: recipientId,
     title: `New message from ${senderName}`,
     content: messageContent.length > 100 ? `${messageContent.substring(0, 100)}...` : messageContent,
     type: 'message',
-    link: `/dashboard/messages?conversation=${conversationId}`,
-    relatedId: conversationId,
-    relatedType: 'conversation'
+    link: `/dashboard/messages?contact=${contactId}`,
+    relatedId: contactId,
+    relatedType: 'contact'
   })
 }
 

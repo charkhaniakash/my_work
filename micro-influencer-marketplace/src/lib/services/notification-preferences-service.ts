@@ -15,6 +15,15 @@ export type NotificationPreferences = {
   updated_at?: string
 }
 
+// Default preferences
+const DEFAULT_PREFERENCES: NotificationPreferences = {
+  campaigns: true,
+  applications: true,
+  messages: true,
+  sound_enabled: true,
+  email_notifications: false
+}
+
 // Get user notification preferences
 export const getNotificationPreferences = async (userId: string) => {
   try {
@@ -22,7 +31,7 @@ export const getNotificationPreferences = async (userId: string) => {
       .from('notification_preferences')
       .select('*')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error fetching notification preferences:', error)
@@ -33,49 +42,28 @@ export const getNotificationPreferences = async (userId: string) => {
           .from('notification_preferences')
           .insert({
             user_id: userId,
-            campaigns: true,
-            applications: true,
-            messages: true,
-            sound_enabled: true,
-            email_notifications: false
+            ...DEFAULT_PREFERENCES
           })
           .select()
-          .single()
+          .maybeSingle()
           
         if (insertError) {
           console.error('Error creating default preferences:', insertError)
-          return {
-            campaigns: true,
-            applications: true,
-            messages: true,
-            sound_enabled: true,
-            email_notifications: false
-          }
+          return DEFAULT_PREFERENCES
         }
         
-        return newPrefs
+        return newPrefs || DEFAULT_PREFERENCES
       }
       
       // Return default preferences if error
-      return {
-        campaigns: true,
-        applications: true,
-        messages: true,
-        sound_enabled: true,
-        email_notifications: false
-      }
+      return DEFAULT_PREFERENCES
     }
 
-    return data
+    // If no data found, return default preferences
+    return data || DEFAULT_PREFERENCES
   } catch (error) {
     console.error('Unexpected error fetching notification preferences:', error)
-    return {
-      campaigns: true,
-      applications: true,
-      messages: true,
-      sound_enabled: true,
-      email_notifications: false
-    }
+    return DEFAULT_PREFERENCES
   }
 }
 
@@ -90,7 +78,7 @@ export const updateNotificationPreferences = async (
       .update(preferences)
       .eq('user_id', userId)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error updating notification preferences:', error)

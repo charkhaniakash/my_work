@@ -38,6 +38,15 @@ export interface User {
     created_at: string
     updated_at: string
   }
+  brand_profiles?: {
+    company_name?: string
+    website?: string
+    industry?: string
+    company_size?: string
+    location?: string
+    description?: string
+    budget_range?: string
+  }
 }
 
 export interface BrandProfile {

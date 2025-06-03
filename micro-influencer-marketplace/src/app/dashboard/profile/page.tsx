@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { User } from '@/lib/types/database'
+import { User as BaseUser, BrandProfile } from '@/lib/types/database'
 import { 
   Instagram, 
   Twitter, 
@@ -17,6 +17,10 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useSupabase } from '@/lib/providers/supabase-provider'
+
+interface User extends BaseUser {
+  brand_profile?: BrandProfile | null
+}
 
 interface SocialMediaLink {
   id: string
@@ -50,11 +54,8 @@ export default function Profile() {
   const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([])
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
-  const [completionPercentage, setCompletionPercentage] = useState(0)
   const [loading, setLoading] = useState(true)
   const supabase = createClientComponentClient()
-
-
 
   useEffect(() => {
     if (!userLoading && user) {
@@ -65,14 +66,47 @@ export default function Profile() {
   const loadProfile = async () => {
     if (!user) return
     try {
-      // Load user profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+      console.log('Loading profile for user:', user.id)
+      
+      // Load user profile with brand profile data if user is a brand
+      let profileData
+      if (user.user_metadata?.role === 'brand') {
+        // Load user data and most recent brand profile
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single()
 
-      if (profileError) throw profileError
+        if (userError) throw userError
+
+        const { data: brandData, error: brandError } = await supabase
+          .from('brand_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (brandError && brandError.code !== 'PGRST116') throw brandError
+
+        profileData = {
+          ...userData,
+          brand_profile: brandData || null
+        }
+      } else {
+        // For influencers, just load user data
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (error) throw error
+        profileData = data
+      }
+
+      console.log('Loaded profile data:', profileData)
       setProfile(profileData)
 
       // Load social media links
@@ -101,17 +135,11 @@ export default function Profile() {
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       if (analyticsError && analyticsError.code !== 'PGRST116') throw analyticsError
       setAnalytics(analyticsData)
 
-      // Calculate profile completion
-      const { data: completionData, error: completionError } = await supabase
-        .rpc('calculate_profile_completion', { user_id: user.id })
-
-      if (completionError) throw completionError
-      setCompletionPercentage(completionData || 0)
     } catch (error) {
       console.error('Error loading profile:', error)
       toast.error('Failed to load profile data')
@@ -173,6 +201,7 @@ export default function Profile() {
     }
   }
 
+  console.log('Profileprofile:', profile)
   const addPortfolioItem = async () => {
     if (!user) return
     try {
@@ -228,55 +257,104 @@ export default function Profile() {
   }
 
   if (userLoading || loading || !user) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    )
+    return <div>Loading...</div>
   }
+
+  const brandProfile = profile?.brand_profile
+  const isBrand = user.user_metadata?.role === 'brand'
 
   return (
     <div className="space-y-6">
+      <div>
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+              {isBrand ? 'Brand Profile' : 'Influencer Profile'}
+            </h2>
+          </div>
+          {/* <a
+            href="/dashboard/settings"
+            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          >
+            <Edit2 className="-ml-0.5 mr-1.5 h-5 w-5" />
+            Edit Profile
+          </a> */}
+        </div>
+      </div>
+
       {/* Profile Header */}
-      <div className="bg-white shadow sm:rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center">
-                {profile?.profile_image ? (
-                  <img
-                    src={profile.profile_image}
-                    alt={profile.full_name || ''}
-                    className="h-20 w-20 rounded-full object-cover"
-                  />
-                ) : (
-                  <ImageIcon className="h-10 w-10 text-gray-400" />
-                )}
-              </div>
-              <div className="ml-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {profile?.full_name || 'Your Name'}
-                </h2>
-                <p className="text-sm text-gray-500">@{profile?.username || 'username'}</p>
-              </div>
+      <div className="overflow-hidden rounded-lg bg-white shadow">
+        <div className="p-6">
+          <div className="flex items-center space-x-6">
+            <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-full">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Profile"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full rounded-full bg-gray-100 flex items-center justify-center">
+                  <span className="text-3xl font-medium text-gray-600">
+                    {profile?.full_name?.[0]}
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-500">Profile Completion</p>
-                <p className="text-2xl font-semibold text-indigo-600">{completionPercentage}%</p>
-              </div>
-              <button
-                onClick={() => {/* TODO: Implement edit profile */}}
-                className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-              >
-                <Edit2 className="h-4 w-4 mr-2" />
-                Edit Profile
-              </button>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900">
+                {profile?.full_name}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {profile?.role}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Brand-specific Information */}
+      {isBrand && brandProfile && (
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="p-6">
+            <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Company Information</h3>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Company Size</dt>
+                <dd className="mt-1 text-sm text-gray-900">{brandProfile.company_size || 'Not specified'}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Location</dt>
+                <dd className="mt-1 text-sm text-gray-900">{brandProfile.location || 'Not specified'}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Website</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {brandProfile.website ? (
+                    <a href={brandProfile.website} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-500">
+                      {brandProfile.website}
+                    </a>
+                  ) : (
+                    'Not specified'
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Budget Range</dt>
+                <dd className="mt-1 text-sm text-gray-900">{brandProfile.budget_range || 'Not specified'}</dd>
+              </div>
+              {brandProfile.description && (
+                <div className="sm:col-span-2">
+                  <dt className="text-sm font-medium text-gray-500">Description</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{brandProfile.description}</dd>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rest of the profile sections */}
       {user?.user_metadata?.role === 'influencer' && (
         <>
           {/* Social Media Links */}
@@ -459,15 +537,6 @@ export default function Profile() {
             </div>
           )}
         </>
-      )}
-      {user?.user_metadata?.role === 'brand' && (
-        <div className="bg-white shadow sm:rounded-lg p-6">
-          <h3 className="text-lg font-medium mb-4">Brand Information</h3>
-          <p className="text-gray-700">Company: {(profile as any)?.brand_profile?.company_name || 'N/A'}</p>
-          <p className="text-gray-700">Website: {(profile as any)?.brand_profile?.website || 'N/A'}</p>
-          <p className="text-gray-700">Industry: {(profile as any)?.brand_profile?.industry || 'N/A'}</p>
-          {/* Add more brand fields as needed */}
-        </div>
       )}
     </div>
   )

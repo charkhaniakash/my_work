@@ -53,7 +53,7 @@ export default function Onboarding() {
         console.error('Profile Error:', profileError)
         throw new Error('Failed to create profile. Please try again.')
       }
-      router.push('/dashboard')
+      // router.push('/dashboard')
     } catch (error) {
       console.error('Error:', error)
       setError(error instanceof Error ? error.message : 'An unexpected error occurred')

@@ -8,12 +8,14 @@ export async function middleware(req: NextRequest) {
   const supabase = createMiddlewareClient({ req, res })
   
   // Define paths that don't need session checking
-  const publicPaths = ['/', '/auth/sign-in', '/auth/sign-up', '/auth/callback']
+  const publicPaths = ['/', '/auth/callback']
+  const authPaths = ['/auth/sign-in', '/auth/sign-up']
   const isPublicPath = publicPaths.some(path => req.nextUrl.pathname === path)
+  const isAuthPath = authPaths.some(path => req.nextUrl.pathname === path)
   const isStaticAsset = req.nextUrl.pathname.match(/\.(js|css|svg|png|jpg|jpeg|gif|ico|ttf|woff|woff2)$/)
   
-  // Skip session check for public paths and static assets
-  if (isPublicPath || isStaticAsset) {
+  // Skip session check for static assets
+  if (isStaticAsset) {
     return res
   }
 
@@ -25,16 +27,16 @@ export async function middleware(req: NextRequest) {
       console.error('Middleware auth error:', error)
     }
 
-    const isAuthPage = req.nextUrl.pathname.startsWith('/auth')
-    
-    // If user is not signed in and trying to access protected routes
-    if (!session && !isAuthPage) {
-      return NextResponse.redirect(new URL('/auth/sign-in', req.url))
+    // If user is signed in and trying to access auth pages, redirect to dashboard
+    if (session && isAuthPath) {
+      const redirectUrl = new URL('/dashboard', req.url)
+      return NextResponse.redirect(redirectUrl)
     }
 
-    // If user is signed in and trying to access auth pages
-    if (session && isAuthPage) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
+    // If user is not signed in and trying to access protected routes
+    if (!session && !isPublicPath && !isAuthPath) {
+      const redirectUrl = new URL('/auth/sign-in', req.url)
+      return NextResponse.redirect(redirectUrl)
     }
 
     return res

@@ -204,7 +204,6 @@ export default function NotificationsDropdown() {
     
     // Navigate if there's a link
     if (notification.link) {
-      console.log("Notification link:", notification)
       router.push(notification.link)
     }
     
@@ -238,8 +237,6 @@ export default function NotificationsDropdown() {
       return date.toLocaleDateString()
     }
   }
-
-  console.log("Notifications" , notifications)
 
   if (!user) return null
 
