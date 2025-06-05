@@ -78,13 +78,19 @@ export function useConversations() {
 
   const markAsRead = async (conversationId: string, userId: string) => {
     try {
-      const { error } = await supabase
+      console.log(`Marking messages as read for conversation: ${conversationId}, user: ${userId}`)
+      const { data, error } = await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)
         .eq('receiver_id', userId)
+        .eq('is_read', false)
+        .select()
 
       if (error) throw error
+      
+      console.log(`Marked ${data?.length || 0} messages as read`)
+      return data
     } catch (error) {
       console.error('Error in markAsRead:', error)
       throw error
@@ -93,18 +99,20 @@ export function useConversations() {
 
   const getUnreadCount = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      console.log(`Getting unread message count for user: ${userId}`)
+      const { data, error, count } = await supabase
         .from('messages')
-        .select('id', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
         .eq('receiver_id', userId)
         .eq('is_read', false)
 
       if (error) throw error
 
-      return data.length
+      console.log(`Found ${count} unread messages`)
+      return count || 0
     } catch (error) {
       console.error('Error in getUnreadCount:', error)
-      throw error
+      return 0 // Return 0 on error instead of throwing
     }
   }
 

@@ -14,6 +14,7 @@ import NotificationsDropdown from '@/components/NotificationsDropdown'
 import { AuthProvider } from '@/lib/auth-context'
 import Sidebar from '@/components/Sidebar'
 import { NavigationLoader } from '@/components/loaders'
+import { useSessionExpiry } from '@/lib/use-session-expiry'
 
 // Function to trigger campaign activation
 async function triggerCampaignActivation() {
@@ -68,6 +69,9 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClientComponentClient()
+
+  // Add session expiry check
+  useSessionExpiry();
 
   // Effect to run campaign management jobs
   useEffect(() => {

@@ -11,6 +11,7 @@ import { User as DBUser } from '@/lib/types/database'
 import { createMessageNotification } from '@/lib/services/notification-service'
 import { MessageSkeleton, ButtonLoader } from '@/components/loaders'
 import { RealtimeChannel } from '@supabase/supabase-js'
+import { useConversations } from '@/lib/hooks/useConversations'
 
 type User = DBUser;
 
@@ -27,6 +28,8 @@ interface Message {
   receiver_id: string
   content: string
   created_at: string
+  conversation_id: string
+  is_read: boolean
 }
 
 export default function Messages() {
@@ -35,6 +38,7 @@ export default function Messages() {
   const router = useRouter()
   const contactId = searchParams?.get('contact')
   const supabase = createClientComponentClient()
+  const { markAsRead } = useConversations()
   const [selectedContact, setSelectedContact] = useState<User | null>(null)
   const [contacts, setContacts] = useState<User[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -114,10 +118,27 @@ export default function Messages() {
           .order('created_at', { ascending: true })
         if (error) throw error
         setMessages(data || [])
+
+        // Mark messages as read when viewing
+        const unreadMessages = data?.filter(
+          msg => msg.receiver_id === user.id && !msg.is_read
+        ) || []
+        
+        if (unreadMessages.length > 0) {
+          console.log(`Marking ${unreadMessages.length} messages as read`)
+          // Use the hook's markAsRead function instead of direct DB update
+          try {
+            await markAsRead(conversation.id, user.id)
+            console.log('Messages marked as read successfully')
+          } catch (markError) {
+            console.error('Error marking messages as read:', markError)
+          }
+        }
       } else {
         setMessages([])
       }
-    } catch {
+    } catch (error) {
+      console.error('Error loading messages:', error)
       toast.error('Failed to load messages')
     } finally {
       setLoading(false)
@@ -234,12 +255,28 @@ export default function Messages() {
             table: 'messages',
             filter: `receiver_id=eq.${user.id}`
           },
-          (payload) => {
+          async (payload) => {
             const newMessage = payload.new as Message
             if (newMessage.sender_id !== user.id) {
               loadContacts()
               if (selectedContact?.id === newMessage.sender_id) {
                 setMessages(prev => prev.some(msg => msg.id === newMessage.id) ? prev : [...prev, newMessage])
+                
+                // Immediately mark message as read if it's from the selected contact
+                try {
+                  const { data: conversation } = await supabase
+                    .from('conversations')
+                    .select('id')
+                    .eq('id', newMessage.conversation_id)
+                    .single()
+                  
+                  if (conversation) {
+                    await markAsRead(conversation.id, user.id)
+                    console.log('Automatically marked new message as read')
+                  }
+                } catch (error) {
+                  console.error('Error marking new message as read:', error)
+                }
               }
               if (!selectedContact || selectedContact.id !== newMessage.sender_id) {
                 supabase

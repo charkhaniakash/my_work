@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { getNotificationPreferences } from './notification-preferences-service'
+import { getNotificationPreferences, shouldSendNotification } from './notification-preferences-service'
 
 // Initialize Supabase admin client for notifications
 const supabaseAdmin = createClient(
@@ -7,7 +7,7 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export type NotificationType = 'message' | 'application' | 'campaign' | 'invitation' | 'invitation_response'
+export type NotificationType = 'message' | 'application' | 'campaign' | 'invitation' | 'invitation_response' | 'application_status'
 
 interface CreateNotificationParams {
   userId: string
@@ -30,26 +30,37 @@ export const createNotification = async ({
 }: CreateNotificationParams) => {
   try {
     // Check user preferences before sending notification
-    if (type === 'message' || type === 'application' || type === 'campaign') {
+    let shouldSend = true;
+    
+    if (type === 'message') {
+      // Check messages preference
       const preferences = await getNotificationPreferences(userId);
-      
-      // Default preferences if none exist
-      const defaultPreferences = {
-        messages: true,
-        applications: true,
-        campaigns: true
-      };
-
-      // Use preferences if they exist, otherwise use defaults
-      const userPreferences = preferences || defaultPreferences;
-      
-      const preferenceType = type === 'message' ? 'messages' : 
-                            type === 'application' ? 'applications' : 'campaigns';
-      
-      if (!userPreferences[preferenceType]) {
-        console.log(`Notification of type ${type} disabled by user preferences for ${userId}`);
-        return { data: null, error: null, skipped: true };
-      }
+      shouldSend = preferences.messages;
+      console.log(`Message notification for user ${userId}: preferences.messages = ${shouldSend}`);
+    } 
+    else if (type === 'application' || type === 'application_status') {
+      // Check applications preference
+      const preferences = await getNotificationPreferences(userId);
+      shouldSend = preferences.applications;
+      console.log(`Application notification for user ${userId}: preferences.applications = ${shouldSend}`);
+    } 
+    else if (type === 'campaign') {
+      // Check campaigns preference
+      const preferences = await getNotificationPreferences(userId);
+      shouldSend = preferences.campaigns;
+      console.log(`Campaign notification for user ${userId}: preferences.campaigns = ${shouldSend}`);
+    }
+    else if (type === 'invitation' || type === 'invitation_response') {
+      // Invitations should respect campaign preferences since they're related to campaigns
+      const preferences = await getNotificationPreferences(userId);
+      shouldSend = preferences.campaigns;
+      console.log(`Invitation notification for user ${userId}: preferences.campaigns = ${shouldSend}`);
+    }
+    
+    // If notifications are disabled for this type, skip creating the notification
+    if (!shouldSend) {
+      console.log(`Notification of type ${type} disabled by user preferences for ${userId}`);
+      return { data: null, error: null, skipped: true };
     }
     
     // Create the notification using admin client
@@ -187,6 +198,13 @@ export async function createApplicationNotificationAdmin(
   campaignId: string
 ) {
   try {
+    // Check if the user has application notifications enabled
+    const preferences = await getNotificationPreferences(recipientId);
+    if (!preferences.applications) {
+      console.log(`Application notification skipped: applications notifications disabled for user ${recipientId}`);
+      return { data: null, error: null, skipped: true };
+    }
+    
     await fetch('/api/notifications/create', {
       method: 'POST',
       headers: {
@@ -215,6 +233,13 @@ export async function createApplicationStatusNotificationAdmin(
   status: string
 ) {
   try {
+    // Check if the user has application notifications enabled
+    const preferences = await getNotificationPreferences(recipientId);
+    if (!preferences.applications) {
+      console.log(`Application status notification skipped: applications notifications disabled for user ${recipientId}`);
+      return { data: null, error: null, skipped: true };
+    }
+    
     const statusText = status === 'approved' 
       ? 'approved' 
       : status === 'rejected' 
@@ -257,6 +282,13 @@ export async function createInvitationNotificationAdmin(
   })
 
   try {
+    // Check if the user has campaign notifications enabled
+    const preferences = await getNotificationPreferences(recipientId);
+    if (!preferences.campaigns) {
+      console.log(`Invitation notification skipped: campaigns notifications disabled for user ${recipientId}`);
+      return { data: null, error: null, skipped: true };
+    }
+    
     console.log('Using Supabase admin client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
     
     const { data, error } = await supabaseAdmin
@@ -306,6 +338,13 @@ export async function createInvitationResponseNotificationAdmin(
   })
 
   try {
+    // Check if the user has campaign notifications enabled
+    const preferences = await getNotificationPreferences(recipientId);
+    if (!preferences.campaigns) {
+      console.log(`Invitation response notification skipped: campaigns notifications disabled for user ${recipientId}`);
+      return { data: null, error: null, skipped: true };
+    }
+    
     console.log('Using Supabase admin client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
     
     const { data, error } = await supabaseAdmin

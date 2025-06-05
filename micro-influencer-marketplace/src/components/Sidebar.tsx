@@ -35,6 +35,7 @@ export default function Sidebar() {
     return user?.role === roleToCheck || user?.user_metadata?.role === roleToCheck;
   };
 
+  // Subscribe to notifications and load counts when user changes
   useEffect(() => {
     if (user?.id) {
       loadUnreadCount()
@@ -75,9 +76,74 @@ export default function Sidebar() {
     }
   }, [user?.id])
 
+  // Subscribe to message changes
+  useEffect(() => {
+    if (!user?.id) return
+    
+    // Subscribe to message updates (when messages are marked as read)
+    const channel = supabase
+      .channel('sidebar-message-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${user.id}`
+        },
+        () => {
+          loadUnreadCount()
+        }
+      )
+      // Also listen for new messages
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${user.id}`
+        },
+        () => {
+          console.log('New message detected, refreshing unread count')
+          loadUnreadCount()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id])
+
+  // Refresh counts at regular intervals
+  useEffect(() => {
+    if (!user?.id) return
+    
+    // Initial load
+    loadUnreadCount()
+    
+    // Set up refresh interval (every 30 seconds)
+    const interval = setInterval(() => {
+      loadUnreadCount()
+    }, 30000)
+    
+    return () => {
+      clearInterval(interval)
+    }
+  }, [user?.id])
+
+  // Refresh counts when on messages page
+  useEffect(() => {
+    if (pathname && pathname.startsWith('/dashboard/messages') && user?.id) {
+      loadUnreadCount()
+    }
+  }, [pathname, user?.id])
+
   const loadUnreadCount = async () => {
+    if (!user?.id) return
     try {
-      const count = await getUnreadCount(user!.id)
+      const count = await getUnreadCount(user.id)
       setUnreadCount(count)
     } catch (error) {
       console.error('Error loading unread count:', error)

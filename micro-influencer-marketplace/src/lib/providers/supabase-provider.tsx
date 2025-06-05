@@ -5,12 +5,19 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { User, Session } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { toast } from 'react-hot-toast'
 
 interface SupabaseContextType {
   user: User | null
   session: Session | null
   isLoading: boolean
   supabase: SupabaseClient
+  signUp: (
+    email: string,
+    password: string,
+    role: 'brand' | 'influencer',
+    fullName: string
+  ) => Promise<{ error: Error | null }>
 }
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined)
@@ -96,11 +103,67 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [supabase, session])
 
+  // Sign up function
+  const signUp = async (
+    email: string,
+    password: string,
+    role: 'brand' | 'influencer',
+    fullName: string
+  ) => {
+    try {
+      console.log('SupabaseProvider: Signing up user with role:', role)
+      
+      // Sign up the user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role,
+            full_name: fullName
+          }
+        }
+      })
+
+      if (authError) {
+        console.error('SupabaseProvider: Auth error during signup:', authError)
+        return { error: authError }
+      }
+
+      if (authData?.user) {
+        // Create an entry in the custom users table
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: authData.user.id,
+            email: authData.user.email!,
+            full_name: fullName,
+            role: role
+          })
+
+        if (insertError) {
+          console.error('SupabaseProvider: Error inserting user data:', insertError)
+          return { error: insertError }
+        }
+
+        console.log('SupabaseProvider: User signed up successfully with role:', role)
+        toast.success('Signed up successfully! Please check your email to confirm your account.')
+        return { error: null }
+      }
+
+      return { error: new Error('Failed to create user') }
+    } catch (error: any) {
+      console.error('SupabaseProvider: Unexpected error during signup:', error)
+      return { error }
+    }
+  }
+
   const value = {
     user,
     session,
     isLoading,
-    supabase
+    supabase,
+    signUp
   }
 
   return (

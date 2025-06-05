@@ -27,6 +27,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
 // Get user notification preferences
 export const getNotificationPreferences = async (userId: string) => {
   try {
+    console.log(`[getNotificationPreferences] Fetching preferences for user: ${userId}`);
     const { data, error } = await supabase
       .from('notification_preferences')
       .select('*')
@@ -34,10 +35,12 @@ export const getNotificationPreferences = async (userId: string) => {
       .maybeSingle()
 
     if (error) {
-      console.error('Error fetching notification preferences:', error)
+      console.error('[getNotificationPreferences] Error fetching notification preferences:', error)
+      console.log('[getNotificationPreferences] Error details:', error.message, error.code)
       
       // If no preferences found, create default ones
-      if (error.code === 'PGRST116') {
+      if (error.code === 'PGRST116' || error.message.includes('no rows') || error.message.includes('not found')) {
+        console.log('[getNotificationPreferences] Creating default preferences for user:', userId)
         const { data: newPrefs, error: insertError } = await supabase
           .from('notification_preferences')
           .insert({
@@ -48,21 +51,30 @@ export const getNotificationPreferences = async (userId: string) => {
           .maybeSingle()
           
         if (insertError) {
-          console.error('Error creating default preferences:', insertError)
+          console.error('[getNotificationPreferences] Error creating default preferences:', insertError)
+          console.log('[getNotificationPreferences] Error details:', insertError.message, insertError.code, insertError.details)
           return DEFAULT_PREFERENCES
         }
         
+        console.log('[getNotificationPreferences] Successfully created default preferences:', newPrefs);
         return newPrefs || DEFAULT_PREFERENCES
       }
       
       // Return default preferences if error
+      console.log('[getNotificationPreferences] Returning default preferences due to error');
       return DEFAULT_PREFERENCES
     }
 
     // If no data found, return default preferences
-    return data || DEFAULT_PREFERENCES
+    if (!data) {
+      console.log('[getNotificationPreferences] No data found, returning default preferences');
+      return DEFAULT_PREFERENCES;
+    }
+    
+    console.log('[getNotificationPreferences] Successfully fetched preferences:', data);
+    return data
   } catch (error) {
-    console.error('Unexpected error fetching notification preferences:', error)
+    console.error('[getNotificationPreferences] Unexpected error fetching notification preferences:', error)
     return DEFAULT_PREFERENCES
   }
 }
@@ -73,21 +85,61 @@ export const updateNotificationPreferences = async (
   preferences: Partial<NotificationPreferences>
 ) => {
   try {
-    const { data, error } = await supabase
+    console.log(`[updateNotificationPreferences] Updating preferences for user: ${userId}`, preferences);
+    
+    // First check if a record exists
+    const { data: existingData, error: checkError } = await supabase
       .from('notification_preferences')
-      .update(preferences)
+      .select('id')
       .eq('user_id', userId)
-      .select()
       .maybeSingle()
+    
+    if (checkError) {
+      console.error('[updateNotificationPreferences] Error checking for existing preferences:', checkError);
+    }
+    
+    console.log('[updateNotificationPreferences] Existing data check result:', existingData);
+    
+    let result;
+    
+    if (existingData) {
+      // Update existing record
+      console.log('[updateNotificationPreferences] Updating existing preferences for user:', userId);
+      result = await supabase
+        .from('notification_preferences')
+        .update({
+          ...preferences,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select()
+        .maybeSingle()
+    } else {
+      // Insert new record
+      console.log('[updateNotificationPreferences] Creating new preferences for user:', userId);
+      result = await supabase
+        .from('notification_preferences')
+        .insert({
+          user_id: userId,
+          ...DEFAULT_PREFERENCES,
+          ...preferences
+        })
+        .select()
+        .maybeSingle()
+    }
+
+    const { data, error } = result;
 
     if (error) {
-      console.error('Error updating notification preferences:', error)
+      console.error('[updateNotificationPreferences] Error updating notification preferences:', error)
+      console.log('[updateNotificationPreferences] Error details:', error.message, error.code, error.details)
       return { success: false, error }
     }
 
+    console.log('[updateNotificationPreferences] Successfully updated preferences:', data);
     return { success: true, data }
   } catch (error) {
-    console.error('Unexpected error updating notification preferences:', error)
+    console.error('[updateNotificationPreferences] Unexpected error updating notification preferences:', error)
     return { success: false, error }
   }
 }

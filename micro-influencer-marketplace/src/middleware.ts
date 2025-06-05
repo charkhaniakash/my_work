@@ -9,10 +9,30 @@ export async function middleware(req: NextRequest) {
   
   // Define paths that don't need session checking
   const publicPaths = ['/', '/auth/callback']
-  const authPaths = ['/auth/sign-in', '/auth/sign-up']
-  const isPublicPath = publicPaths.some(path => req.nextUrl.pathname === path)
-  const isAuthPath = authPaths.some(path => req.nextUrl.pathname === path)
-  const isStaticAsset = req.nextUrl.pathname.match(/\.(js|css|svg|png|jpg|jpeg|gif|ico|ttf|woff|woff2)$/)
+  const authPaths = [
+    '/auth/sign-in', 
+    '/auth/sign-up', 
+    '/auth/forgot-password', 
+    '/auth/reset-password'
+  ]
+  
+  // Get current path without query parameters
+  const pathname = req.nextUrl.pathname
+  
+  // Check for Supabase auth token in URL (used in password reset and other auth flows)
+  const hasAuthToken = req.nextUrl.searchParams.has('token') || 
+                      req.nextUrl.searchParams.has('access_token') ||
+                      req.nextUrl.searchParams.has('refresh_token') ||
+                      req.nextUrl.searchParams.has('type')
+  
+  // If there's an auth token in the URL, don't redirect
+  if (hasAuthToken) {
+    return res
+  }
+  
+  const isPublicPath = publicPaths.some(path => pathname === path)
+  const isAuthPath = authPaths.some(path => pathname === path || pathname.startsWith(path))
+  const isStaticAsset = pathname.match(/\.(js|css|svg|png|jpg|jpeg|gif|ico|ttf|woff|woff2)$/)
   
   // Skip session check for static assets
   if (isStaticAsset) {
@@ -20,21 +40,35 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
-    // Get session (this refreshes the session automatically)
+    // Get session (this refreshes the session if not expired)
     const { data: { session }, error } = await supabase.auth.getSession()
     
     if (error) {
       console.error('Middleware auth error:', error)
     }
 
+    // Add additional session expiration check
+    const isSessionExpired = session && session.expires_at ? 
+      new Date(session.expires_at * 1000) < new Date() : 
+      true;
+    
+    const isLoggedIn = session && !isSessionExpired;
+
     // If user is signed in and trying to access auth pages, redirect to dashboard
-    if (session && isAuthPath) {
+    if (isLoggedIn && isAuthPath) {
+      console.log('User is already logged in. Redirecting from auth page to dashboard.');
       const redirectUrl = new URL('/dashboard', req.url)
       return NextResponse.redirect(redirectUrl)
     }
 
-    // If user is not signed in and trying to access protected routes
-    if (!session && !isPublicPath && !isAuthPath) {
+    // If user is not signed in or session is expired and trying to access protected routes
+    if ((!isLoggedIn) && !isPublicPath && !isAuthPath) {
+      // Clear cookies if session is expired
+      if (isSessionExpired && session) {
+        await supabase.auth.signOut();
+      }
+      
+      console.log('User is not logged in. Redirecting to sign-in page.');
       const redirectUrl = new URL('/auth/sign-in', req.url)
       return NextResponse.redirect(redirectUrl)
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getNotificationPreferences } from '@/lib/services/notification-preferences-service'
 
 // Initialize Supabase admin client
 const supabaseAdmin = createClient(
@@ -24,6 +25,31 @@ export async function POST(req: Request) {
     // Validate required fields
     if (!recipientId || !type) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    
+    // Check notification preferences before creating notification
+    let shouldSend = true;
+    try {
+      const preferences = await getNotificationPreferences(recipientId);
+      
+      // Map notification type to preference setting
+      if (type === 'message') {
+        shouldSend = preferences.messages;
+      } else if (type === 'application' || type === 'application_status') {
+        shouldSend = preferences.applications;
+      } else if (type === 'campaign' || type === 'invitation' || type === 'invitation_response') {
+        shouldSend = preferences.campaigns;
+      }
+      
+      console.log(`Notification preferences check for ${recipientId}, type ${type}: shouldSend = ${shouldSend}`);
+      
+      if (!shouldSend) {
+        console.log(`Skipping notification creation: ${type} notifications disabled for user ${recipientId}`);
+        return NextResponse.json({ success: true, skipped: true, reason: 'notifications disabled' });
+      }
+    } catch (error) {
+      console.error('Error checking notification preferences:', error);
+      // Continue with notification creation if preferences check fails
     }
 
     let notificationData = {

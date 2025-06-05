@@ -29,7 +29,12 @@ The platform acts as an intermediary, offering tools and features that simplify 
 
 ### 4.1. General Features (Brands & Influencers)
 
-*   **User Authentication:** Secure registration and login for both brand and influencer accounts.
+*   **Enhanced User Authentication:** 
+    * Secure registration and login for both brand and influencer accounts
+    * "Remember Me" functionality for extended login sessions (30 days)
+    * Comprehensive password reset flow with email verification
+    * Role-based signup with visual selection between brand and influencer
+    * Session expiration management with automatic logout
 *   **Profile Management:** Dedicated profiles for brands (company information) and influencers (portfolio, social media links, niche, audience demographics).
 *   **Dashboard:** Personalized dashboard providing an overview of relevant activities, notifications, and key statistics.
 
@@ -66,12 +71,17 @@ The application follows a modern web architecture, primarily utilizing the **Nex
 
 *   **Frontend Framework:** Next.js (React) - Chosen for its server-side rendering capabilities, file-system based routing, API routes, and overall developer experience.
 *   **Backend/Database/Auth:** Supabase - Provides a scalable PostgreSQL database, robust authentication, and simplifies backend development with its API layer and real-time capabilities.
+    * **Authentication System:** Utilizes Supabase Auth with custom middleware for session management, role-based access control, and secure password reset flows.
 *   **Database Language:** PostgreSQL - A powerful, open-source relational database system.
 *   **Styling:** Tailwind CSS - A utility-first CSS framework for rapid UI development and consistent design.
 *   **Language:** TypeScript - Used throughout the project for improved code quality, maintainability, and reduced runtime errors.
 *   **State Management:** React Hooks and Context API - Standard React features for managing component and application state.
+*   **Session Management:** Custom hooks for tracking session expiration and synchronizing authentication state across tabs.
 *   **Deployment:** (Mention planned or current deployment platform, e.g., Vercel, Netlify, own server)
-*   **Other Key Libraries:** (List notable libraries like `react-hook-form` for forms, `@supabase/supabase-js` for database interaction, etc. - *Requires checking `package.json` for an exhaustive list*)
+*   **Other Key Libraries:** 
+    * `react-hot-toast` for user notifications
+    * `@supabase/auth-helpers-nextjs` for authentication helpers
+    * `lucide-react` for icons
 
 ## 7. Data Model (Basic Entities)
 
@@ -116,6 +126,26 @@ The platform now includes a more sophisticated payment flow:
 *   **Status Clarity**: Enhanced status badges with clear labels like "Invitation Pending" vs "Application Pending"
 *   **Educational UI**: Added explanatory sections to clarify the difference between invitations and applications
 *   **Consistent Terminology**: Standardized status labels and button text across the application
+
+### 8.5. Authentication System Enhancements
+
+*   **Improved Password Reset Flow**: 
+    * Multi-step password reset process with email verification
+    * Secure token-based reset mechanism
+    * User-friendly error handling and success messages
+    * Testing tools for developers to simulate the reset flow
+
+*   **Session Management**:
+    * "Remember Me" functionality allowing users to stay logged in for 30 days
+    * Middleware-based session verification and expiration handling
+    * Automatic logout on session expiration with redirect to login page
+    * Cross-tab session synchronization (logout in one tab affects all tabs)
+
+*   **Authentication UI Improvements**:
+    * Redesigned sign-up page with visual role selection cards
+    * Enhanced sign-in form with remember me option
+    * Consistent styling across all authentication pages
+    * Clear feedback messages for all authentication actions
 
 ## 9. Future Considerations
 

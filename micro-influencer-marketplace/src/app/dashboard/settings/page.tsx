@@ -156,10 +156,16 @@ export default function Settings() {
 
   // Handle toggle change for notification preferences
   const handleToggleChange = (field: keyof NotificationPreferences) => {
+    console.log(`Toggling notification preference: ${field} from ${notificationPrefs[field]} to ${!notificationPrefs[field]}`);
     setNotificationPrefs(prev => ({
       ...prev,
       [field]: !prev[field]
-    }))
+    }));
+    
+    // Log the updated state
+    setTimeout(() => {
+      console.log('Updated notification preferences state:', notificationPrefs);
+    }, 0);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -258,13 +264,16 @@ export default function Settings() {
       }
 
       // Update notification preferences
+      console.log('About to update notification preferences:', notificationPrefs);
       const { success, error: prefsError } = await updateNotificationPreferences(
         user.id,
         notificationPrefs
-      )
+      );
+
+      console.log('Notification preferences update result:', { success, error: prefsError });
 
       if (prefsError) {
-        console.error('Error updating notification preferences:', prefsError)
+        console.error('Error updating notification preferences:', prefsError);
       }
 
       // Reload the profile to ensure we have the latest data
