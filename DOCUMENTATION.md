@@ -40,14 +40,17 @@ The platform acts as an intermediary, offering tools and features that simplify 
 *   **Application Review & Management:** Centralized view of all applications for their campaigns. Detailed view of each influencer's application, pitch, and proposed rate. Tools to accept, reject, or communicate with applicants.
 *   **Campaign Performance Tracking:** Overview of campaign progress, accepted influencers, and potentially (future feature) tools for tracking deliverables and performance metrics.
 *   **Invitation Management:** Track the status of sent invitations.
+*   **Payment Processing:** Ability to process payments for accepted applications, moving them from 'accepted' to 'pending_payment' to 'approved_and_paid' status.
+*   **Campaign Scheduling:** Create campaigns with future start dates, which automatically activate on the scheduled date.
 
 ### 4.3. Features for Influencers
 
 *   **Campaign Browsing & Discovery:** Browse a feed of available campaigns with filtering and search options. Detailed view of campaign briefs to understand requirements and compensation.
 *   **Campaign Application Submission:** Easy process to apply to campaigns, including submitting a custom pitch and proposing a rate.
-*   **Application Status Tracking:** A dedicated page to view all submitted applications and monitor their current status (Pending, Accepted, Rejected, Approved & Paid).
+*   **Application Status Tracking:** A dedicated page to view all submitted applications and monitor their current status (Pending, Accepted, Rejected, Pending Payment, Approved & Paid).
 *   **Invitation Response:** Ability to view and respond to direct campaign invitations from brands. Option to accept or decline, and provide a pitch/rate upon acceptance.
-*   **Notification System:** Receive notifications for new campaign invitations, application status updates, etc.
+*   **Notification System:** Receive notifications for new campaign invitations, application status updates, scheduled campaigns, and campaign activations.
+*   **Campaign Start Date Awareness:** Clear indication when campaigns haven't started yet, with prevention of applying to campaigns before their start date.
 
 ## 5. High-Level Architecture
 
@@ -57,6 +60,7 @@ The application follows a modern web architecture, primarily utilizing the **Nex
 *   **Backend (API Routes):** Next.js API routes handle requests from the frontend, interacting with the database and external services.
 *   **Database:** PostgreSQL database managed by Supabase, storing all persistent data.
 *   **Authentication:** Handled by Supabase Auth, providing secure user registration and session management.
+*   **Background Jobs:** Automated processes for campaign activation and expiration based on start and end dates.
 
 ## 6. Tech Stack Details
 
@@ -76,21 +80,53 @@ The core of the application revolves around several key entities and their relat
 *   `users`: Stores basic user information (authentication). Linked to profiles.
 *   `brand_profiles`: Stores detailed information for brand users.
 *   `influencer_profiles`: Stores detailed information and portfolio for influencer users.
-*   `campaigns`: Represents marketing campaigns created by brands.
-*   `campaign_applications`: Records an influencer's application to a specific campaign, including pitch and proposed rate.
+*   `campaigns`: Represents marketing campaigns created by brands, with status: 'scheduled', 'active', 'paused', or 'completed'.
+*   `campaign_applications`: Records an influencer's application to a specific campaign, including pitch and proposed rate. Status can be 'pending', 'accepted', 'rejected', 'pending_payment', or 'approved_and_paid'.
 *   `campaign_invitations`: Records a brand's invitation to an influencer for a specific campaign.
 *   `notifications`: Stores user notifications (e.g., new invitations, application status updates).
 
 These entities are related to represent the connections between users, campaigns, applications, and invitations.
 
-## 8. Future Considerations (Optional)
+## 8. Recent Enhancements
+
+### 8.1. Payment System Integration
+
+The platform now includes a more sophisticated payment flow:
+*   When a brand accepts an application, the status changes to 'pending_payment'
+*   Brands see "Payment Required" indicators and "Make Payment" buttons for accepted applications
+*   After payment is processed, the status changes to 'approved_and_paid'
+*   Clear visual indicators of payment status throughout the UI
+
+### 8.2. Campaign Scheduling System
+
+*   **Automated Campaign Activation**: Campaigns created with future start dates are automatically activated on the start date
+*   **Notification System**: 
+    - Influencers receive "Upcoming Campaign" notifications when scheduled campaigns are created
+    - Influencers receive additional notifications when scheduled campaigns become active
+*   **Application Prevention**: Influencers cannot apply to campaigns before their start date, with clear messages explaining when the campaign will begin
+
+### 8.3. Invitation System Improvements
+
+*   **Application Status Awareness**: The system prevents brands from inviting influencers who have already applied or been accepted to a campaign
+*   **Status Visibility**: Clear status indicators for invitations showing whether they are pending, accepted, or declined
+*   **Activity Summaries**: Influencer discovery interface now shows a summary of each influencer's activity with your brand
+
+### 8.4. UI/UX Improvements
+
+*   **Status Clarity**: Enhanced status badges with clear labels like "Invitation Pending" vs "Application Pending"
+*   **Educational UI**: Added explanatory sections to clarify the difference between invitations and applications
+*   **Consistent Terminology**: Standardized status labels and button text across the application
+
+## 9. Future Considerations
 
 Potential future enhancements could include:
 
 *   In-platform messaging between brands and influencers.
-*   Payment processing integration.
+*   More advanced payment processing integration with escrow capabilities.
 *   Advanced analytics and reporting for campaigns.
 *   Rating and review system for brands and influencers.
 *   More sophisticated search and filtering for influencers/campaigns.
+*   Campaign templates and recommendation engine.
+*   Mobile application development.
 
 This documentation provides a solid foundation for understanding the Micro-Influencer Marketplace project. 

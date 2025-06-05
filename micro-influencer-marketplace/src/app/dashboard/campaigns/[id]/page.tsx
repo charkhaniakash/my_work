@@ -13,7 +13,8 @@ import {
   Users,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Banknote
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useSupabase } from '@/lib/providers/supabase-provider'
@@ -21,7 +22,17 @@ import { has } from 'lodash'
 import { createApplicationNotification } from '@/lib/services/notification-service'
 import RecommendedInfluencers from '@/components/campaigns/RecommendedInfluencers'
 
-type ApplicationWithInfluencer = CampaignApplication & { influencer: { full_name: string } }
+type ApplicationWithInfluencer = {
+  id: string;
+  campaign_id: string;
+  influencer_id: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'approved_and_paid' | 'pending_payment';
+  pitch: string;
+  proposed_rate: number;
+  created_at: string;
+  updated_at?: string;
+  influencer: { full_name: string };
+}
 
 export default function CampaignDetail() {
   const params = useParams()
@@ -170,6 +181,15 @@ export default function CampaignDetail() {
   }
 
   const handleApplicationStatus = async (applicationId: string, newStatus: 'accepted' | 'rejected') => {
+    // For accept action, redirect to application detail page
+    if (newStatus === 'accepted') {
+      console.log("logging into application detail page")
+      // as of now just navigate to the application detail page only for now
+      // router.push(`/dashboard/campaigns/${params?.id}/applications`);
+      router.push(`/dashboard/campaigns/${params?.id}/applications/${applicationId}`);
+      return;
+    }
+
     try {
       // Get the application details first to access the influencer ID
       const { data: applicationData, error: fetchError } = await supabase
@@ -180,7 +200,7 @@ export default function CampaignDetail() {
       
       if (fetchError) throw fetchError
       
-      // Update application status
+      // Update application status (only for rejection)
       const { error } = await supabase
         .from('campaign_applications')
         .update({ status: newStatus })
@@ -203,7 +223,7 @@ export default function CampaignDetail() {
         applicationId
       )
 
-        toast.success(`Application ${newStatus}`)
+      toast.success(`Application ${newStatus}`)
     } catch (error) {
       console.error('Error updating application status:', error)
       toast.error('Failed to update application status')
@@ -565,6 +585,25 @@ export default function CampaignDetail() {
 
       {user?.user_metadata?.role === 'influencer' && !hasApplied && (
         <div className="bg-white shadow sm:rounded-lg p-6 my-6">
+          {/* Show campaign not started message */}
+          {new Date(campaign.start_date) > new Date() && (
+            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Clock className="h-5 w-5 text-yellow-400" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Campaign has not started yet
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>This campaign will start on {new Date(campaign.start_date).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Show invitation status if exists */}
           {hasInvitation && invitationStatus === 'accepted' && (
             <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -614,8 +653,8 @@ export default function CampaignDetail() {
             </div>
           )}
 
-          {/* Only show application form if no accepted invitation */}
-          {(!hasInvitation || invitationStatus !== 'accepted') && (
+          {/* Only show application form if campaign has started and no accepted invitation */}
+          {(!hasInvitation || invitationStatus !== 'accepted') && new Date(campaign.start_date) <= new Date() && (
             <>
               <h3 className="text-lg font-semibold mb-2">Apply to this Campaign</h3>
 
@@ -745,18 +784,46 @@ export default function CampaignDetail() {
                         </button>
                             </div>
                           )}
+                          {application.status === 'pending_payment' && (
+                            <div className="flex items-center space-x-2">
+                              <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                                Payment Required
+                              </span>
+                              <button
+                                onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications/${application.id}`)}
+                                className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+                              >
+                                <Banknote className="mr-1 h-3 w-3" />
+                                Make Payment
+                              </button>
+                            </div>
+                          )}
                           {application.status === 'accepted' && (
+                            <div className="flex items-center space-x-2">
+                              <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                                Payment Required
+                              </span>
+                              <button
+                                onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications/${application.id}`)}
+                                className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+                              >
+                                <Banknote className="mr-1 h-3 w-3" />
+                                Make Payment
+                              </button>
+                            </div>
+                          )}
+                          {application.status === 'approved_and_paid' && (
                             <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                               <CheckCircle className="mr-1 h-4 w-4" />
-                              Accepted
+                              Paid
                             </span>
                           )}
                           {application.status === 'rejected' && (
                             <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
                               <XCircle className="mr-1 h-4 w-4" />
                               Rejected
-                      </span>
-                    )}
+                            </span>
+                          )}
                   </div>
                 </div>
                       <div className="mt-2 ml-14">

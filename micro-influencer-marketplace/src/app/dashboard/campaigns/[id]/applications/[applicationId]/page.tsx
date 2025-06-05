@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, CheckCircle, XCircle, MessageSquare, Banknote } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { createApplicationNotification } from '@/lib/services/notification-service';
 
 // Use dynamic import with SSR disabled for CampaignPayment to avoid NextRouter mounting issues
 const CampaignPayment = dynamic(
@@ -76,16 +77,34 @@ export default function ApplicationDetail() {
   };
   
   const handleStatusUpdate = async (newStatus: 'accepted' | 'rejected') => {
+    const applicationId = typeof params?.applicationId === 'string' ? params.applicationId : Array.isArray(params?.applicationId) ? params.applicationId[0] : null;
+    
+    if (!applicationId) {
+      toast.error('Application ID is missing');
+      return;
+    }
+
     try {
+      // For acceptance, set status to "pending_payment" instead of "accepted"
+      const statusToSet = newStatus === 'accepted' ? 'pending_payment' : newStatus;
+      
       const { error } = await supabase
         .from('campaign_applications')
-        .update({ status: newStatus })
-        .eq('id', params?.applicationId);
+        .update({ status: statusToSet })
+        .eq('id', applicationId);
         
       if (error) throw error;
       
-      setApplication({ ...application, status: newStatus });
+      setApplication({ ...application, status: statusToSet });
       
+      // Create notification for the influencer
+      await createApplicationNotification(
+        application.influencer_id,
+        campaign?.title || 'Campaign',
+        newStatus, // Still send "accepted" in notification for better user experience
+        applicationId
+      );
+
       // Show payment screen if the application is accepted
       if (newStatus === 'accepted') {
         setShowPayment(true);
@@ -98,9 +117,24 @@ export default function ApplicationDetail() {
     }
   };
   
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = async () => {
     toast.success('Payment successful! The influencer has been paid.');
-    loadData(); // Reload data to get updated status
+    
+    // Update application status to "approved_and_paid" after successful payment
+    const applicationId = typeof params?.applicationId === 'string' ? params.applicationId : Array.isArray(params?.applicationId) ? params.applicationId[0] : null;
+    
+    if (applicationId) {
+      try {
+        await supabase
+          .from('campaign_applications')
+          .update({ status: 'approved_and_paid' })
+          .eq('id', applicationId);
+        
+        loadData(); // Reload data to get updated status
+      } catch (error) {
+        console.error('Error updating payment status:', error);
+      }
+    }
   };
   
   if (loading) {
@@ -129,7 +163,7 @@ export default function ApplicationDetail() {
   }
   
   const isBrand = user.id === campaign.brand_id;
-  const canPay = isBrand && application.status === 'accepted' && !showPayment;
+  const canPay = isBrand && (application.status === 'pending_payment' || application.status === 'accepted') && !showPayment;
   
   return (
     <div className="container mx-auto py-8 px-4">
@@ -154,14 +188,18 @@ export default function ApplicationDetail() {
             </div>
             <div>
               <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-sm font-medium ${
-                application.status === 'accepted' || application.status === 'approved_and_paid'
+                application.status === 'approved_and_paid'
                   ? 'bg-green-100 text-green-700'
+                  : application.status === 'pending_payment' || application.status === 'accepted'
+                  ? 'bg-yellow-100 text-yellow-700'
                   : application.status === 'rejected'
                   ? 'bg-red-100 text-red-700'
                   : 'bg-yellow-100 text-yellow-700'
               }`}>
                 {application.status === 'approved_and_paid' 
                   ? 'Approved & Paid' 
+                  : application.status === 'pending_payment'
+                  ? 'Payment Required'
                   : application.status.charAt(0).toUpperCase() + application.status.slice(1)}
               </span>
             </div>

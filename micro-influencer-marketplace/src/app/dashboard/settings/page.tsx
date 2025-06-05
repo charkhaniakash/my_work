@@ -232,7 +232,7 @@ export default function Settings() {
           .update(profileData)
           .eq('id', existingProfiles[0].id)
           .select()
-          .single()
+          .maybeSingle()
 
         if (updateError) {
           console.error('Error updating profile:', updateError)
@@ -247,7 +247,7 @@ export default function Settings() {
           .from(table)
           .insert([profileData])
           .select()
-          .single()
+          .maybeSingle()
 
         if (insertError) {
           console.error('Error creating profile:', insertError)

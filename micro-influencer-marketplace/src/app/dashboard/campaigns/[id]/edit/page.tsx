@@ -45,8 +45,18 @@ export default function EditCampaign() {
     if (!dateString) return false
     const date = new Date(dateString)
     const today = new Date()
+    
+    // Set both dates to midnight for proper comparison
     today.setHours(0, 0, 0, 0)
     date.setHours(0, 0, 0, 0)
+    
+    console.log('Date comparison:', {
+      dateString,
+      date: date.toISOString(),
+      today: today.toISOString(),
+      isPast: date < today
+    })
+    
     return date < today
   }
 
@@ -54,15 +64,45 @@ export default function EditCampaign() {
     if (!dateString) return false
     const date = new Date(dateString)
     const today = new Date()
+    
+    // Set both dates to midnight for proper comparison
     today.setHours(0, 0, 0, 0)
     date.setHours(0, 0, 0, 0)
+    
+    console.log('Today check:', {
+      dateString,
+      date: date.toISOString(),
+      today: today.toISOString(),
+      isToday: date.getTime() === today.getTime()
+    })
+    
     return date.getTime() === today.getTime()
   }
 
   const canEditStartDate = () => {
     if (!campaign) return true
-    // Can't edit start date if campaign has already started (unless it's today)
-    return !isDateInPast(campaign.start_date) || isDateToday(campaign.start_date)
+    
+    // Case 1: Campaign is active and has already started (today or in the past) - cannot edit
+    if (campaign.status === 'active' && (isDateInPast(campaign.start_date) || isDateToday(campaign.start_date))) {
+      console.log('Cannot edit: Campaign is active and has already started')
+      return false
+    }
+    
+    // Case 2: Campaign is scheduled for the future (start date is in the future) - can edit
+    if (!isDateInPast(campaign.start_date) && !isDateToday(campaign.start_date)) {
+      console.log('Can edit: Campaign is scheduled for the future')
+      return true
+    }
+    
+    // Case 3: Campaign is paused or completed - can edit regardless of dates
+    if (campaign.status === 'paused' || campaign.status === 'completed') {
+      console.log('Can edit: Campaign is paused or completed')
+      return true
+    }
+    
+    // Default case: cannot edit
+    console.log('Cannot edit: Default case')
+    return false
   }
 
   const canEditEndDate = () => {
@@ -89,12 +129,14 @@ export default function EditCampaign() {
   }
 
   useEffect(() => {
-    if (params.id) {
+    if (params?.id) {
       loadCampaign()
     }
-  }, [params.id])
+  }, [params?.id])
 
   const loadCampaign = async () => {
+    if (!params?.id) return;
+    
     try {
       const { data, error } = await supabase
         .from('campaigns')
@@ -104,18 +146,27 @@ export default function EditCampaign() {
 
       if (error) throw error
 
-      setCampaign(data)
+      // Ensure dates are in YYYY-MM-DD format for proper comparison
+      const formattedData = {
+        ...data,
+        start_date: data.start_date ? new Date(data.start_date).toISOString().split('T')[0] : '',
+        end_date: data.end_date ? new Date(data.end_date).toISOString().split('T')[0] : ''
+      }
+
+      console.log('Loaded campaign:', formattedData)
+
+      setCampaign(formattedData)
       setFormData({
-        title: data.title,
-        description: data.description,
-        budget: data.budget,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        target_location: data.target_location || '',
-        target_niche: data.target_niche,
-        requirements: data.requirements,
-        deliverables: data.deliverables,
-        status: data.status
+        title: formattedData.title,
+        description: formattedData.description,
+        budget: formattedData.budget,
+        start_date: formattedData.start_date,
+        end_date: formattedData.end_date,
+        target_location: formattedData.target_location || '',
+        target_niche: formattedData.target_niche,
+        requirements: formattedData.requirements,
+        deliverables: formattedData.deliverables,
+        status: formattedData.status
       })
     } catch (error) {
       console.error('Error loading campaign:', error)
@@ -127,29 +178,34 @@ export default function EditCampaign() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+    
+    if (!params?.id) {
+      toast.error('Campaign ID is missing');
+      return;
+    }
 
     try {
-      setSaving(true)
+      setSaving(true);
       const { error } = await supabase
         .from('campaigns')
         .update({
           ...formData,
           updated_at: new Date().toISOString()
         })
-        .eq('id', params.id)
+        .eq('id', params.id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      toast.success('Campaign updated successfully')
-      router.push(`/dashboard/campaigns/${params.id}`)
+      toast.success('Campaign updated successfully');
+      router.push(`/dashboard/campaigns/${params.id}`);
     } catch (error) {
-      console.error('Error updating campaign:', error)
-      toast.error('Failed to update campaign')
+      console.error('Error updating campaign:', error);
+      toast.error('Failed to update campaign');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleNicheChange = (niche: string) => {
     setFormData(prev => ({
@@ -178,7 +234,7 @@ export default function EditCampaign() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push(`/dashboard/campaigns/${params.id}`)}
+            onClick={() => params?.id && router.push(`/dashboard/campaigns/${params.id}`)}
             className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500 mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -263,7 +319,6 @@ export default function EditCampaign() {
                 </select>
               </div>
             </div>
-
             {/* Dates */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
@@ -273,6 +328,7 @@ export default function EditCampaign() {
                     <span className="text-xs text-amber-600 ml-2">(Cannot modify - campaign already started)</span>
                   )}
                 </label>
+
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Calendar className="h-5 w-5 text-gray-400" />
@@ -290,6 +346,12 @@ export default function EditCampaign() {
                     }`}
                   />
                 </div>
+                {/* {formData.start_date && isScheduledCampaign(formData.start_date) && (
+                                <p className="mt-2 text-sm text-indigo-600 flex items-center">
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  Campaign will be scheduled to start on {new Date(formData.start_date).toLocaleDateString()}
+                                </p>
+                              )} */}
                 {!canEditStartDate() && (
                   <p className="mt-2 text-sm text-amber-600 flex items-center">
                     <Calendar className="h-4 w-4 mr-1" />
@@ -408,7 +470,7 @@ export default function EditCampaign() {
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              onClick={() => router.push(`/dashboard/campaigns/${params.id}`)}
+              onClick={() => params?.id && router.push(`/dashboard/campaigns/${params.id}`)}
               className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
             >
               Cancel

@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
-import { User, Mail, MapPin, Users, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { User, Mail, MapPin, Users, CheckCircle, Clock, XCircle, Info } from 'lucide-react'
 import InviteInfluencerButton from './InviteInfluencerButton'
 
 export default function InfluencerDiscovery() {
@@ -102,12 +102,51 @@ export default function InfluencerDiscovery() {
     enabled: mounted
   })
 
+  // Add new query for existing applications
+  const { data: existingApplications, isLoading: applicationsLoading } = useQuery({
+    queryKey: ['applications'],
+    queryFn: async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+      
+      // First get the brand's campaigns
+      const { data: brandCampaigns, error: campaignsError } = await supabase
+        .from('campaigns')
+        .select('id')
+        .eq('brand_id', user?.id)
+      
+      if (campaignsError) throw campaignsError
+      if (!brandCampaigns || brandCampaigns.length === 0) return []
+      
+      // Then get applications for those campaigns
+      const campaignIds = brandCampaigns.map(c => c.id)
+      const { data, error } = await supabase
+        .from('campaign_applications')
+        .select('*')
+        .in('campaign_id', campaignIds)
+      
+      if (error) throw error
+      console.log('Filtered applications for brand campaigns:', data)
+      return data || []
+    },
+    enabled: mounted
+  })
+
   // Helper function to get invitation status for an influencer-campaign pair
   const getInvitationStatus = (influencerId: string, campaignId: string) => {
     const invitation = existingInvitations?.find((inv: any) => 
       inv.influencer_id === influencerId && inv.campaign_id === campaignId
     )
     return invitation ? invitation.status : null
+  }
+
+  // Helper function to get application status for an influencer-campaign pair
+  const getApplicationStatus = (influencerId: string, campaignId: string) => {
+    const application = existingApplications?.find(app => 
+      app.influencer_id === influencerId && 
+      app.campaign_id === campaignId
+    )
+    return application ? application.status : null
   }
 
   const handleInvite = async (influencerId: string, campaignId: string) => {
@@ -170,27 +209,97 @@ export default function InfluencerDiscovery() {
     }
   }
 
-  const getStatusBadge = (status: string | null) => {
-    if (!status) return null
-
-    const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, text: 'Pending' },
-      accepted: { color: 'bg-green-100 text-green-800', icon: CheckCircle, text: 'Accepted' },
-      declined: { color: 'bg-red-100 text-red-800', icon: XCircle, text: 'Declined' }
+  const getStatusBadge = (invitationStatus: string | null, applicationStatus: string | null) => {
+    // First priority: Show application status if it exists
+    if (applicationStatus) {
+      const appStatusConfig = {
+        pending: { color: 'bg-blue-100 text-blue-800', icon: Clock, text: 'Application Pending' },
+        accepted: { color: 'bg-green-100 text-green-800', icon: CheckCircle, text: 'Application Accepted' },
+        rejected: { color: 'bg-red-100 text-red-800', icon: XCircle, text: 'Application Rejected' },
+        pending_payment: { color: 'bg-purple-100 text-purple-800', icon: Clock, text: 'Payment Required' },
+        approved_and_paid: { color: 'bg-green-100 text-green-800', icon: CheckCircle, text: 'Paid & Approved' }
+      };
+      
+      const config = appStatusConfig[applicationStatus as keyof typeof appStatusConfig];
+      if (config) {
+        const Icon = config.icon;
+        return (
+          <Badge className={`${config.color} flex items-center gap-1`}>
+            <Icon className="h-3 w-3" />
+            {config.text}
+          </Badge>
+        );
+      }
     }
-
-    const config = statusConfig[status as keyof typeof statusConfig]
-    if (!config) return null
-
-    const Icon = config.icon
-
-    return (
-      <Badge className={`${config.color} flex items-center gap-1`}>
-        <Icon className="h-3 w-3" />
-        {config.text}
-      </Badge>
-    )
+    
+    // Second priority: Show invitation status
+    if (invitationStatus) {
+      const invStatusConfig = {
+        pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, text: 'Invitation Pending' },
+        accepted: { color: 'bg-green-100 text-green-800', icon: CheckCircle, text: 'Invitation Accepted' },
+        declined: { color: 'bg-red-100 text-red-800', icon: XCircle, text: 'Invitation Declined' }
+      };
+      
+      const config = invStatusConfig[invitationStatus as keyof typeof invStatusConfig];
+      if (config) {
+        const Icon = config.icon;
+        return (
+          <Badge className={`${config.color} flex items-center gap-1`}>
+            <Icon className="h-3 w-3" />
+            {config.text}
+          </Badge>
+        );
+      }
+    }
+    
+    return null;
   }
+
+  // Helper component to show status summary for an influencer
+  const InfluencerStatusSummary = ({ influencerId }: { influencerId: string }) => {
+    if (!campaigns || campaigns.length === 0) return null;
+    
+    // Count different statuses for this influencer across all campaigns
+    let pendingInvites = 0;
+    let acceptedInvites = 0;
+    let pendingApplications = 0;
+    let acceptedApplications = 0;
+    let paidApplications = 0;
+    
+    campaigns.forEach(campaign => {
+      const invStatus = getInvitationStatus(influencerId, campaign.id);
+      const appStatus = getApplicationStatus(influencerId, campaign.id);
+      
+      if (invStatus === 'pending') pendingInvites++;
+      if (invStatus === 'accepted') acceptedInvites++;
+      if (appStatus === 'pending') pendingApplications++;
+      if (appStatus === 'accepted') acceptedApplications++;
+      if (appStatus === 'approved_and_paid') paidApplications++;
+    });
+    
+    const hasActivity = pendingInvites > 0 || acceptedInvites > 0 || 
+                        pendingApplications > 0 || acceptedApplications > 0 || 
+                        paidApplications > 0;
+    
+    if (!hasActivity) return null;
+    
+    // Create a simple status summary
+    const statusItems = [];
+    if (pendingInvites > 0) statusItems.push(`${pendingInvites} pending invitation(s)`);
+    if (acceptedInvites > 0) statusItems.push(`${acceptedInvites} accepted invitation(s)`);
+    if (pendingApplications > 0) statusItems.push(`${pendingApplications} pending application(s)`);
+    if (acceptedApplications > 0) statusItems.push(`${acceptedApplications} accepted application(s)`);
+    if (paidApplications > 0) statusItems.push(`${paidApplications} paid application(s)`);
+    
+    const statusText = statusItems.join(', ');
+    
+    return (
+      <div className="flex items-center text-xs text-blue-600 mt-1" title={statusText}>
+        <Info className="h-3 w-3 mr-1" />
+        Activity with your brand
+      </div>
+    );
+  };
 
   if (!mounted) {
     return null // or a loading skeleton
@@ -198,6 +307,21 @@ export default function InfluencerDiscovery() {
 
   return (
     <div className="space-y-6">
+      {/* Information about invitations vs applications */}
+      <Card className="p-6 bg-blue-50 border-blue-200">
+        <div className="flex items-start space-x-4">
+          <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+          <div>
+            <h3 className="font-medium text-blue-800">Understanding Influencer Engagement</h3>
+            <div className="mt-2 text-sm text-blue-700 space-y-2">
+              <p><strong>Invitations:</strong> You can invite influencers to your campaigns. They'll receive a notification and can choose to apply.</p>
+              <p><strong>Applications:</strong> Influencers can also apply directly to your campaigns without an invitation.</p>
+              <p><strong>Status Indicators:</strong> The badges show whether there's a pending invitation, accepted invitation, or application status.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
+      
       {/* Search and Filters */}
       <Card className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -247,6 +371,7 @@ export default function InfluencerDiscovery() {
                     <Users className="h-4 w-4 mr-1" />
                     {influencer.influencer_profile?.followers_count?.toLocaleString() || 'N/A'} followers
                   </div>
+                  <InfluencerStatusSummary influencerId={influencer.id} />
                 </div>
               </div>
 
@@ -292,7 +417,8 @@ export default function InfluencerDiscovery() {
                     <label className="text-sm font-medium text-gray-700">Select campaign to invite:</label>
                     {campaigns?.map((campaign) => {
                       const invitationStatus = getInvitationStatus(influencer.id, campaign.id)
-                      const statusBadge = getStatusBadge(invitationStatus)
+                      const applicationStatus = getApplicationStatus(influencer.id, campaign.id)
+                      const statusBadge = getStatusBadge(invitationStatus, applicationStatus)
                       
                       return (
                         <div key={campaign.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
@@ -304,9 +430,13 @@ export default function InfluencerDiscovery() {
                               Budget: ${campaign.budget?.toLocaleString()}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {statusBadge}
-                            {!invitationStatus && (
+                          
+                          {statusBadge}
+                          
+                          {/* Clear indication of action buttons based on status */}
+                          <div className="flex gap-2">
+                            {/* Invite button - only show if no invitation or application exists */}
+                            {!invitationStatus && !applicationStatus && (
                               <Button
                                 size="sm"
                                 onClick={() => handleInvite(influencer.id, campaign.id)}
@@ -315,7 +445,9 @@ export default function InfluencerDiscovery() {
                                 Invite
                               </Button>
                             )}
-                            {invitationStatus === 'declined' && (
+                            
+                            {/* Re-invite button - only show for declined invitations with no application */}
+                            {invitationStatus === 'declined' && !applicationStatus && (
                               <Button
                                 size="sm"
                                 variant="outline"

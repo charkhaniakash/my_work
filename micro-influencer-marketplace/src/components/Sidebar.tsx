@@ -12,7 +12,8 @@ import {
   CreditCardIcon,
   BanknotesIcon,
   ChartBarIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  CogIcon
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -38,7 +39,7 @@ export default function Sidebar() {
     if (user?.id) {
       loadUnreadCount()
       loadUnreadNotifications()
-      
+
       // Subscribe to new notifications
       const channel = supabase
         .channel('sidebar-notification-changes')
@@ -67,7 +68,7 @@ export default function Sidebar() {
           }
         )
         .subscribe()
-      
+
       return () => {
         supabase.removeChannel(channel)
       }
@@ -82,19 +83,19 @@ export default function Sidebar() {
       console.error('Error loading unread count:', error)
     }
   }
-  
+
   const loadUnreadNotifications = async () => {
     if (!user?.id) return
-    
+
     try {
       const { count, error } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('is_read', false)
-      
+
       if (error) throw error
-      
+
       setUnreadNotifications(count || 0)
     } catch (error) {
       console.error('Error loading unread notifications count:', error)
@@ -105,39 +106,39 @@ export default function Sidebar() {
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     ...(hasRole('brand')
       ? [
-          {
-            name: 'My Campaigns',
-            href: '/dashboard/campaigns',
-            icon: BriefcaseIcon
-          },
-          {
-            name: 'Invitations',
-            href: '/dashboard/invitations',
-            icon: BriefcaseIcon
-          }
-          // {
-          //   name: 'Create Campaign',
-          //   href: '/dashboard/campaigns/new',
-          //   icon: PlusCircleIcon
-          // }
-        ]
+        {
+          name: 'My Campaigns',
+          href: '/dashboard/campaigns',
+          icon: BriefcaseIcon
+        },
+        {
+          name: 'Invitations',
+          href: '/dashboard/invitations',
+          icon: BriefcaseIcon
+        },
+        {
+          name: 'Analytics',
+          href: '/dashboard/analytics',
+          icon: ChartBarIcon
+        }
+      ]
       : [
-          {
-            name: 'Available Campaigns',
-            href: '/dashboard/available-campaigns',
-            icon: BriefcaseIcon
-          },
-          {
-            name: 'My Applications',
-            href: '/dashboard/applications',
-            icon: ClipboardIcon
-          },
-          {
-            name: 'View Invitations',
-            href: '/dashboard/influencer/invitations',
-            icon: EnvelopeIcon
-          }
-        ]),
+        {
+          name: 'Available Campaigns',
+          href: '/dashboard/available-campaigns',
+          icon: BriefcaseIcon
+        },
+        {
+          name: 'My Applications',
+          href: '/dashboard/applications',
+          icon: ClipboardIcon
+        },
+        {
+          name: 'View Invitations',
+          href: '/dashboard/influencer/invitations',
+          icon: EnvelopeIcon
+        }
+      ]),
     {
       name: 'Messages',
       href: '/dashboard/messages',
@@ -154,15 +155,16 @@ export default function Sidebar() {
     // Role-specific payment features
     ...(hasRole('influencer')
       ? [{
-          name: 'My Earnings',
-          href: '/dashboard/earnings',
-          icon: ChartBarIcon
-        }] 
+        name: 'My Earnings',
+        href: '/dashboard/earnings',
+        icon: ChartBarIcon
+      }]
       : [{
-          name: 'Transactions',
-          href: '/dashboard/transactions',
-          icon: BanknotesIcon
-        }])
+        name: 'Transactions',
+        href: '/dashboard/transactions',
+        icon: BanknotesIcon
+      }]),
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
   ]
 
   return (
@@ -174,16 +176,14 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`${
-                isActive
-                  ? 'bg-indigo-50 text-indigo-600'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              } group flex items-center px-2 py-2 text-sm font-medium rounded-md relative`}
+              className={`${isActive
+                ? 'bg-indigo-50 text-indigo-600'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                } group flex items-center px-2 py-2 text-sm font-medium rounded-md relative`}
             >
               <item.icon
-                className={`${
-                  isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
-                } mr-3 flex-shrink-0 h-6 w-6`}
+                className={`${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                  } mr-3 flex-shrink-0 h-6 w-6`}
                 aria-hidden="true"
               />
               {item.name}

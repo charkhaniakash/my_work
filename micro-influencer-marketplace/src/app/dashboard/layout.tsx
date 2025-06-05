@@ -15,6 +15,48 @@ import { AuthProvider } from '@/lib/auth-context'
 import Sidebar from '@/components/Sidebar'
 import { NavigationLoader } from '@/components/loaders'
 
+// Function to trigger campaign activation
+async function triggerCampaignActivation() {
+  try {
+    const response = await fetch('/api/campaigns/activate', {
+      method: 'POST'
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to activate campaigns:', await response.text());
+      return;
+    }
+    
+    const result = await response.json();
+    if (result.activatedCount > 0) {
+      console.log(`Activated ${result.activatedCount} scheduled campaigns`);
+    }
+  } catch (error) {
+    console.error('Error activating scheduled campaigns:', error);
+  }
+}
+
+// Function to trigger campaign expiration
+async function triggerCampaignExpiration() {
+  try {
+    const response = await fetch('/api/campaigns/expire', {
+      method: 'POST'
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to expire campaigns:', await response.text());
+      return;
+    }
+    
+    const result = await response.json();
+    if (result.expiredCount > 0) {
+      console.log(`Expired ${result.expiredCount} campaigns`);
+    }
+  } catch (error) {
+    console.error('Error expiring campaigns:', error);
+  }
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -26,6 +68,21 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClientComponentClient()
+
+  // Effect to run campaign management jobs
+  useEffect(() => {
+    // Run campaign activation and expiration jobs
+    triggerCampaignActivation();
+    triggerCampaignExpiration();
+    
+    // Set up interval to run jobs periodically (every hour)
+    const jobInterval = setInterval(() => {
+      triggerCampaignActivation();
+      triggerCampaignExpiration();
+    }, 60 * 60 * 1000); // 1 hour
+    
+    return () => clearInterval(jobInterval);
+  }, []);
 
   useEffect(() => {
     const getUser = async () => {

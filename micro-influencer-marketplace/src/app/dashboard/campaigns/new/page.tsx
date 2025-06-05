@@ -8,6 +8,7 @@ import { Calendar, DollarSign, MapPin, Tag } from 'lucide-react'
 import { CampaignTemplate } from '@/lib/types/database'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { createCampaignNotification } from '@/lib/services/notification-service'
+import { createNotification } from '@/lib/services/notification-service'
 
 const NICHE_OPTIONS = [
   'Fashion',
@@ -131,6 +132,37 @@ export default function NewCampaign() {
           )
         } catch (notificationError) {
           console.error('Error sending notifications:', notificationError)
+          // Don't fail the campaign creation if notifications fail
+        }
+      } else if (campaignStatus === 'scheduled') {
+        try {
+          // Get all influencers
+          const { data: influencers, error: influencersError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', 'influencer')
+
+          if (influencersError) throw influencersError
+
+          // Send notification to each influencer about the scheduled campaign
+          const brandName = user.user_metadata?.full_name || user.email || 'A brand'
+          const startDateFormatted = new Date(formData.start_date).toLocaleDateString();
+          
+          await Promise.all(
+            influencers.map(influencer => 
+              createNotification({
+                userId: influencer.id,
+                title: 'Upcoming Campaign',
+                content: `${brandName} has scheduled a new campaign "${data.title}" starting on ${startDateFormatted}`,
+                type: 'campaign',
+                link: `/dashboard/campaigns/${data.id}`,
+                relatedId: data.id,
+                relatedType: 'campaign'
+              })
+            )
+          )
+        } catch (notificationError) {
+          console.error('Error sending scheduled campaign notifications:', notificationError)
           // Don't fail the campaign creation if notifications fail
         }
       }
