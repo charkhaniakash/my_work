@@ -41,10 +41,8 @@ export async function POST(req: Request) {
         shouldSend = preferences.campaigns;
       }
       
-      console.log(`Notification preferences check for ${recipientId}, type ${type}: shouldSend = ${shouldSend}`);
       
       if (!shouldSend) {
-        console.log(`Skipping notification creation: ${type} notifications disabled for user ${recipientId}`);
         return NextResponse.json({ success: true, skipped: true, reason: 'notifications disabled' });
       }
     } catch (error) {

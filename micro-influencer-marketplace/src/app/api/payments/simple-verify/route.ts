@@ -26,15 +26,11 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log(`Verifying Stripe session: ${sessionId}`);
-
-    // Verify the session with Stripe
     const stripeSession = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['line_items', 'payment_intent']
     });
 
     if (!stripeSession) {
-      console.log('Session not found');
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
@@ -43,20 +39,17 @@ export async function GET(req: Request) {
 
     // Check payment status
     if (stripeSession.payment_status !== 'paid') {
-      console.log(`Payment not completed: ${stripeSession.payment_status}`);
       return NextResponse.json(
         { error: 'Payment not completed' },
         { status: 400 }
       );
     }
 
-    console.log('Payment verified as paid');
 
     // Extract metadata
     const { campaignId, brandId, influencerId } = stripeSession.metadata || {};
 
     if (!campaignId || !influencerId) {
-      console.log('Missing metadata:', stripeSession.metadata);
       return NextResponse.json(
         { error: 'Missing campaign or influencer information in session metadata' },
         { status: 400 }
@@ -107,7 +100,6 @@ export async function GET(req: Request) {
         transactionError = error;
       } else if (transaction) {
         transactionId = transaction.id;
-        console.log(`Transaction created with ID: ${transactionId}`);
       }
     } catch (error: any) {
       console.error('Error storing transaction:', error);
@@ -131,13 +123,9 @@ export async function GET(req: Request) {
         applicationUpdateStatus = false;
         applicationUpdateError = checkError;
       } else if (!existingApplication) {
-        console.log('No application found for this campaign and influencer');
         applicationUpdateStatus = false;
         applicationUpdateError = { message: 'No application found for this campaign and influencer' };
       } else {
-        console.log(`Found application with ID ${existingApplication.id}, current status: ${existingApplication.status}`);
-        
-        // Update application status to 'approved_and_paid'
         const { error: updateError } = await supabase
           .from('campaign_applications')
           .update({ status: 'approved_and_paid' })
@@ -148,7 +136,6 @@ export async function GET(req: Request) {
           applicationUpdateStatus = false;
           applicationUpdateError = updateError;
         } else {
-          console.log('Application status updated successfully');
         }
       }
     } catch (dbError: any) {

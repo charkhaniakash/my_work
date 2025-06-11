@@ -20,7 +20,6 @@ import { TrendingUp, DollarSign, Users, BarChart3, ArrowUpRight } from 'lucide-r
 
 export default function DashboardPage() {
   const { supabase, user } = useSupabase();
-  console.log('🔍 User:', user)
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader

@@ -20,7 +20,6 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log(`Earnings API request for userId: ${userId}`);
 
     // First, verify the user is an influencer
     const { data: userData, error: userError } = await supabase
@@ -37,7 +36,6 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log(`User role: ${userData.role}`);
 
     // Allow access to both influencer data (for themselves) and brand data (for campaign owners)
     // This enables both parties to see their respective earnings/payments
@@ -62,29 +60,8 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log(`Found ${data?.length || 0} transactions`);
-    
-    // Log first transaction for debugging
-    if (data && data.length > 0) {
-      console.log('Sample transaction:', {
-        id: data[0].id,
-        amount: data[0].amount,
-        status: data[0].status,
-        created_at: data[0].created_at
-      });
-    }
-
-    // Add additional analytics data
     const statsResponse = await calculateEarningsStats(userId, userData.role);
     
-    // Debug stats response
-    console.log('Stats response:', {
-      total: statsResponse.total,
-      fees: statsResponse.fees,
-      transactionCount: statsResponse.transactionCount,
-      monthlyAverages: statsResponse.monthlyAverages?.length || 0
-    });
-
     return NextResponse.json({
       transactions: data,
       stats: statsResponse
@@ -107,7 +84,6 @@ async function calculateEarningsStats(userId: string, role: string) {
     const isInfluencer = role === 'influencer';
     const idField = isInfluencer ? 'influencer_id' : 'brand_id';
     
-    console.log(`Calculating stats for ${role} with ID ${userId}`);
     
     // Get completed transactions only for stats
     const { data, error } = await supabase
@@ -128,10 +104,8 @@ async function calculateEarningsStats(userId: string, role: string) {
       throw error;
     }
     
-    console.log(`Found ${data?.length || 0} completed transactions for stats`);
     
     if (!data || data.length === 0) {
-      console.log('No completed transactions found for stats');
       return {
         total: 0,
         fees: 0,
@@ -156,29 +130,16 @@ async function calculateEarningsStats(userId: string, role: string) {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     
-    // Log date testing for first transaction
-    if (data.length > 0) {
-      const firstDate = new Date(data[0].created_at);
-      console.log('Sample date parsing:', {
-        raw: data[0].created_at,
-        parsed: firstDate.toISOString(),
-        year: firstDate.getFullYear(),
-        month: firstDate.getMonth() + 1
-      });
-    }
-    
     const recentTransactions = data.filter(t => {
       // Ensure proper date parsing
       try {
         const transactionDate = new Date(t.created_at);
         return transactionDate >= sixMonthsAgo;
       } catch (err) {
-        console.error('Date parsing error for transaction:', t.id, t.created_at);
         return false;
       }
     });
     
-    console.log(`Found ${recentTransactions.length} transactions in the last 6 months`);
     
     // Group by month 
     const monthlyData = recentTransactions.reduce((acc: Record<string, number[]>, t) => {
@@ -197,8 +158,6 @@ async function calculateEarningsStats(userId: string, role: string) {
       return acc;
     }, {});
     
-    console.log('Monthly data keys:', Object.keys(monthlyData));
-    
     // Calculate monthly averages
     const monthlyAverages = Object.entries(monthlyData).map(([month, amounts]) => {
       const total = amounts.reduce((sum, amount) => sum + amount, 0);
@@ -210,7 +169,6 @@ async function calculateEarningsStats(userId: string, role: string) {
       };
     });
     
-    console.log(`Generated ${monthlyAverages.length} monthly averages`);
     
     return {
       total,

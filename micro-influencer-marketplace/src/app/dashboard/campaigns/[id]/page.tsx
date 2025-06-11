@@ -56,16 +56,14 @@ export default function CampaignDetail() {
   const { user, isLoading: userLoading } = useSupabase()
 
   useEffect(() => {
-    console.log('User state:', { user, userLoading })
     if (params?.id) {
-    loadCampaign()
+      loadCampaign()
       loadApplications()
     }
   }, [params?.id, user, userLoading])
 
   // Unified effect to load tasks, files, and notes when campaign.id is ready
   useEffect(() => {
-    console.log('Loading campaign data:', { campaignId: campaign?.id, userId: user?.id })
     if (campaign?.id) {
       loadTasks();
       loadFiles();
@@ -110,7 +108,6 @@ export default function CampaignDetail() {
   }, [params?.id, user?.id, userLoading])
   const loadCampaign = async () => {
     try {
-      console.log('Loading campaign for ID:', params?.id)
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
@@ -121,7 +118,6 @@ export default function CampaignDetail() {
         console.error('Error loading campaign:', error)
         throw error
       }
-      console.log('Campaign loaded:', data)
       setCampaign(data)
     } catch (error) {
       console.error('Error loading campaign:', error)
@@ -151,7 +147,6 @@ export default function CampaignDetail() {
   }
 
   const loadFiles = async () => {
-    console.log('Loading files for campaign:', campaign?.id)
     const { data, error } = await supabase
       .from('campaign_files')
       .select('*')
@@ -166,7 +161,6 @@ export default function CampaignDetail() {
   }
 
   const loadTasks = async () => {
-    console.log('Loading tasks for campaign:', campaign?.id)
     const { data, error } = await supabase
       .from('deliverable_tasks')
       .select('*')
@@ -175,7 +169,6 @@ export default function CampaignDetail() {
     if (error) {
       console.error('Error loading tasks:', error)
     } else {
-      console.log('Tasks loaded:', data)
       setTasks(data || [])
     }
   }
@@ -183,7 +176,6 @@ export default function CampaignDetail() {
   const handleApplicationStatus = async (applicationId: string, newStatus: 'accepted' | 'rejected') => {
     // For accept action, redirect to application detail page
     if (newStatus === 'accepted') {
-      console.log("logging into application detail page")
       // as of now just navigate to the application detail page only for now
       // router.push(`/dashboard/campaigns/${params?.id}/applications`);
       router.push(`/dashboard/campaigns/${params?.id}/applications/${applicationId}`);
@@ -197,9 +189,9 @@ export default function CampaignDetail() {
         .select('*')
         .eq('id', applicationId)
         .single()
-      
+
       if (fetchError) throw fetchError
-      
+
       // Update application status (only for rejection)
       const { error } = await supabase
         .from('campaign_applications')
@@ -214,7 +206,7 @@ export default function CampaignDetail() {
           ? { ...app, status: newStatus }
           : app
       ))
-      
+
       // Create notification for the influencer
       await createApplicationNotification(
         applicationData.influencer_id,
@@ -313,7 +305,7 @@ export default function CampaignDetail() {
         <div className="mt-6">
           <button
             onClick={() => router.push('/dashboard/campaigns')}
-            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 cursor-pointer"
           >
             Back to Campaigns
           </button>
@@ -411,12 +403,12 @@ export default function CampaignDetail() {
                 Scheduled to start on {new Date(campaign.start_date).toLocaleDateString()}
               </div>
             )}
-            {campaign.target_location && (
-            <div className="mt-2 flex items-center text-sm text-gray-500">
-              <MapPin className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
+            {/* {campaign.target_location && (
+              <div className="mt-2 flex items-center text-sm text-gray-500">
+                <MapPin className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
                 {campaign.target_location}
-            </div>
-            )}
+              </div>
+            )} */}
             <div className="mt-2 flex items-center text-sm text-gray-500">
               <Tag className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
               {campaign.target_niche.join(', ')}
@@ -424,11 +416,11 @@ export default function CampaignDetail() {
           </div>
         </div>
         {user?.user_metadata?.role === 'brand' && (
-        <div className="mt-4 flex md:ml-4 md:mt-0">
+          <div className="mt-4 flex md:ml-4 md:mt-0">
             <button
               type="button"
               onClick={() => router.push(`/dashboard/campaigns/${campaign.id}/edit`)}
-              className="ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              className="ml-3 inline-flex items-center cursor-pointer rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
             >
               Edit Campaign
             </button>
@@ -443,7 +435,6 @@ export default function CampaignDetail() {
                       title: campaign.title,
                       description: campaign.description,
                       budget: campaign.budget,
-                      target_location: campaign.target_location,
                       target_niche: campaign.target_niche,
                       requirements: campaign.requirements,
                       deliverables: campaign.deliverables
@@ -455,11 +446,11 @@ export default function CampaignDetail() {
                   toast.error('Failed to save template');
                 }
               }}
-              className="ml-3 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+              className="ml-3 inline-flex items-center cursor-pointer rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
             >
               Save as Template
             </button>
-        </div>
+          </div>
         )}
       </div>
 
@@ -472,10 +463,10 @@ export default function CampaignDetail() {
               <h4 className="text-sm font-medium text-gray-500">Description</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.description}</p>
             </div>
-              <div>
+            <div>
               <h4 className="text-sm font-medium text-gray-500">Requirements</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.requirements}</p>
-              </div>
+            </div>
             <div>
               <h4 className="text-sm font-medium text-gray-500">Deliverables</h4>
               <p className="mt-1 text-sm text-gray-900">{campaign.deliverables}</p>
@@ -485,59 +476,57 @@ export default function CampaignDetail() {
       </div>
 
       {!userLoading && hasApplied && userApplication && (
-        <div className={`border shadow sm:rounded-lg p-6 my-6 ${
-          userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid'
-            ? 'bg-green-50 border-green-200'
-            : userApplication.status === 'rejected'
+        <div className={`border shadow sm:rounded-lg p-6 my-6 ${userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid'
+          ? 'bg-green-50 border-green-200'
+          : userApplication.status === 'rejected'
             ? 'bg-red-50 border-red-200'
             : 'bg-yellow-50 border-yellow-200'
-        }`}>
+          }`}>
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 Application Status
-                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                  userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid'
-                    ? 'bg-green-100 text-green-800'
-                    : userApplication.status === 'rejected'
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid'
+                  ? 'bg-green-100 text-green-800'
+                  : userApplication.status === 'rejected'
                     ? 'bg-red-100 text-red-800'
                     : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {userApplication.status === 'approved_and_paid' 
-                    ? 'Approved & Paid' 
+                  }`}>
+                  {userApplication.status === 'approved_and_paid'
+                    ? 'Approved & Paid'
                     : userApplication.status === 'accepted'
-                    ? 'Accepted'
-                    : userApplication.status === 'rejected'
-                    ? 'Rejected'
-                    : 'Under Review'}
+                      ? 'Accepted'
+                      : userApplication.status === 'rejected'
+                        ? 'Rejected'
+                        : 'Under Review'}
                 </span>
               </h3>
-              
+
               <div className="space-y-2">
                 {userApplication.status === 'pending' && (
                   <p className="text-yellow-700">
                     Your application is currently under review by the brand. You'll be notified once they make a decision.
                   </p>
                 )}
-                
+
                 {userApplication.status === 'accepted' && (
                   <p className="text-green-700">
                     🎉 Congratulations! Your application has been accepted. The brand will contact you soon regarding payment and project details.
                   </p>
                 )}
-                
+
                 {userApplication.status === 'approved_and_paid' && (
                   <p className="text-green-700">
                     ✅ Your application has been approved and payment has been processed. You can now start working on the campaign deliverables.
                   </p>
                 )}
-                
+
                 {userApplication.status === 'rejected' && (
                   <p className="text-red-700">
                     Unfortunately, your application was not selected for this campaign. Don't worry, keep applying to other campaigns!
                   </p>
                 )}
-                
+
                 <div className="mt-4 text-sm text-gray-600">
                   <div><strong>Applied on:</strong> {new Date(userApplication.created_at).toLocaleDateString()}</div>
                   <div><strong>Proposed rate:</strong> ${userApplication.proposed_rate}</div>
@@ -547,7 +536,7 @@ export default function CampaignDetail() {
                 </div>
               </div>
             </div>
-            
+
             {(userApplication.status === 'accepted' || userApplication.status === 'approved_and_paid') && (
               <div className="ml-4">
                 {userApplication.status === 'accepted' && (
@@ -561,20 +550,20 @@ export default function CampaignDetail() {
                 )}
               </div>
             )}
-            
+
             {userApplication.status === 'rejected' && (
               <div className="ml-4">
                 <XCircle className="h-8 w-8 text-red-500" />
               </div>
             )}
-            
+
             {userApplication.status === 'pending' && (
               <div className="ml-4">
                 <Clock className="h-8 w-8 text-yellow-500" />
               </div>
             )}
           </div>
-          
+
           {/* Show pitch details */}
           <div className="mt-4 p-4 bg-white bg-opacity-50 rounded-lg">
             <h4 className="font-medium text-gray-900 mb-2">Your Application Details</h4>
@@ -662,7 +651,7 @@ export default function CampaignDetail() {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   if (!pitch.trim() || !proposedRate) return toast.error('Please fill all fields');
-                  
+
                   try {
                     const { error } = await supabase
                       .from('campaign_applications')
@@ -674,7 +663,7 @@ export default function CampaignDetail() {
                         status: 'pending',
                         brand_id: campaign?.brand_id
                       });
-                    
+
                     if (error) {
                       // Handle the specific error for accepted invitations
                       if (error.message.includes('already accepted an invitation')) {
@@ -726,7 +715,7 @@ export default function CampaignDetail() {
       {/* Applications */}
       {user?.user_metadata?.role === 'brand' && (
         <div className="bg-white shadow sm:rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
+          <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold leading-6 text-gray-900">Applications</h3>
               <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
@@ -735,10 +724,10 @@ export default function CampaignDetail() {
             </div>
             <div className="mt-6 flow-root">
               <ul role="list" className="-my-5 divide-y divide-gray-200">
-            {applications.map((application) => (
+                {applications.map((application) => (
                   <li key={application.id} className="py-5">
                     <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
-                <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {/* Influencer avatar and name */}
                           {(application.influencer && 'profile_image' in application.influencer && (application.influencer as any).profile_image) ? (
@@ -752,7 +741,7 @@ export default function CampaignDetail() {
                               <Users className="h-6 w-6" />
                             </div>
                           )}
-                  <div>
+                          <div>
                             <a
                               href={`/dashboard/profile/${application.influencer_id}`}
                               className="text-sm font-semibold text-indigo-700 hover:underline"
@@ -767,21 +756,21 @@ export default function CampaignDetail() {
                         <div className="ml-4 flex items-center space-x-4">
                           <div className="text-sm text-gray-500">
                             ${application.proposed_rate}
-                  </div>
-                    {application.status === 'pending' && (
+                          </div>
+                          {application.status === 'pending' && (
                             <div className="flex space-x-2">
-                        <button
+                              <button
                                 onClick={() => handleApplicationStatus(application.id, 'accepted')}
-                                className="inline-flex items-center rounded-full bg-green-100 p-1 text-green-600 hover:bg-green-200"
-                        >
+                                className="inline-flex items-center cursor-pointer rounded-full bg-green-100 p-1 text-green-600 hover:bg-green-200"
+                              >
                                 <CheckCircle className="h-5 w-5" />
-                        </button>
-                        <button
+                              </button>
+                              <button
                                 onClick={() => handleApplicationStatus(application.id, 'rejected')}
-                                className="inline-flex items-center rounded-full bg-red-100 p-1 text-red-600 hover:bg-red-200"
-                        >
+                                className="inline-flex items-center cursor-pointer rounded-full bg-red-100 p-1 text-red-600 hover:bg-red-200"
+                              >
                                 <XCircle className="h-5 w-5" />
-                        </button>
+                              </button>
                             </div>
                           )}
                           {application.status === 'pending_payment' && (
@@ -791,7 +780,7 @@ export default function CampaignDetail() {
                               </span>
                               <button
                                 onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications/${application.id}`)}
-                                className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+                                className="inline-flex items-center cursor-pointer rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
                               >
                                 <Banknote className="mr-1 h-3 w-3" />
                                 Make Payment
@@ -805,7 +794,7 @@ export default function CampaignDetail() {
                               </span>
                               <button
                                 onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications/${application.id}`)}
-                                className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+                                className="inline-flex items-center cursor-pointer rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
                               >
                                 <Banknote className="mr-1 h-3 w-3" />
                                 Make Payment
@@ -824,18 +813,18 @@ export default function CampaignDetail() {
                               Rejected
                             </span>
                           )}
-                  </div>
-                </div>
+                        </div>
+                      </div>
                       <div className="mt-2 ml-14">
                         <p className="text-sm text-gray-800 line-clamp-2">{application.pitch}</p>
                       </div>
                       <p className="mt-1 text-xs text-gray-400 ml-14">
                         Applied {new Date(application.created_at).toLocaleDateString()}
                       </p>
-              </div>
+                    </div>
                   </li>
-            ))}
-            {applications.length === 0 && (
+                ))}
+                {applications.length === 0 && (
                   <li className="py-5 text-center text-gray-500">
                     No applications yet
                   </li>
@@ -852,7 +841,7 @@ export default function CampaignDetail() {
           <div className="flex justify-between items-center mb-2">
             <div className="font-semibold text-gray-900">Internal Notes</div>
             {!editingNotes && (
-              <button onClick={() => setEditingNotes(true)} className="text-indigo-600 text-sm">Edit</button>
+              <button onClick={() => setEditingNotes(true)} className="text-indigo-600 text-sm cursor-pointer">Edit</button>
             )}
           </div>
           {editingNotes ? (
@@ -864,8 +853,8 @@ export default function CampaignDetail() {
                 onChange={e => setNotes(e.target.value)}
               />
               <div className="flex gap-2 mt-2">
-                <button onClick={handleNotesSave} className="bg-indigo-600 text-white px-3 py-1 rounded">Save</button>
-                <button onClick={() => { setEditingNotes(false); setNotes(campaign.notes || '') }} className="bg-gray-200 px-3 py-1 rounded">Cancel</button>
+                <button onClick={handleNotesSave} className="bg-indigo-600 text-white px-3 py-1 rounded cursor-pointer">Save</button>
+                <button onClick={() => { setEditingNotes(false); setNotes(campaign.notes || '') }} className="bg-gray-200 px-3 py-1 rounded cursor-pointer">Cancel</button>
               </div>
             </div>
           ) : (
@@ -905,7 +894,7 @@ export default function CampaignDetail() {
             placeholder="Add a new task..."
             className="flex-1 border rounded px-2 py-1"
           />
-          <button onClick={handleAddTask} className="bg-indigo-600 text-white px-3 py-1 rounded">Add</button>
+          <button onClick={handleAddTask} className="bg-indigo-600 text-white cursor-pointer px-3 py-1 rounded">Add</button>
         </div>
         <ul className="divide-y divide-gray-200">
           {tasks.map(task => (
@@ -918,7 +907,7 @@ export default function CampaignDetail() {
                 />
                 <span className={task.completed ? 'line-through text-gray-400' : ''}>{task.title}</span>
               </label>
-              <button onClick={() => handleDeleteTask(task.id)} className="text-red-500 text-xs ml-2">Delete</button>
+              <button onClick={() => handleDeleteTask(task.id)} className="text-red-500 text-xs ml-2 cursor-pointer">Delete</button>
             </li>
           ))}
           {tasks.length === 0 && <li className="text-gray-400 py-2">No tasks yet.</li>}

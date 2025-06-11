@@ -324,7 +324,6 @@ export async function PATCH(req: Request) {
             .single()
 
           if (updateError) {
-            console.error('Error updating invitation with existing application:', updateError)
             return NextResponse.json({ error: 'Failed to update invitation' }, { status: 500 })
           }
 
@@ -362,7 +361,6 @@ export async function PATCH(req: Request) {
         if (appError) {
           // If application creation fails due to duplicate, that's okay
           if (appError.code === '23505') { // Unique constraint violation
-            console.log('Application already exists, continuing with invitation update...')
           } else {
             console.error('Error creating application:', appError)
             return NextResponse.json({ error: 'Failed to create application' }, { status: 500 })

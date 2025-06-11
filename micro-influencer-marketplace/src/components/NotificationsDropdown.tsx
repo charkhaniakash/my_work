@@ -246,7 +246,7 @@ export default function NotificationsDropdown() {
         className="relative p-2 text-gray-600 rounded-full hover:bg-gray-100 focus:outline-none"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <Bell className="h-6 w-6" />
+        <Bell className="h-6 w-6 cursor-pointer" />
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -255,13 +255,13 @@ export default function NotificationsDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50">
+        <div className="absolute  right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-50">
           <div className="py-2 border-b flex justify-between items-center px-4">
             <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-blue-600 cursor-pointer hover:text-blue-800"
               >
                 Mark all as read
               </button>
@@ -321,13 +321,13 @@ export default function NotificationsDropdown() {
           <div className="py-2 border-t px-4">
             <button
               onClick={() => router.push('/dashboard/notifications')}
-              className="block w-full text-left text-sm text-indigo-600 hover:text-indigo-800 font-medium p-2"
+              className="block w-full text-left text-sm text-indigo-600 hover:text-indigo-800 font-medium p-2 cursor-pointer"
             >
               View All Notifications
             </button>
             <button
               onClick={() => setIsOpen(false)}
-              className="block w-full text-center text-xs text-gray-500 hover:text-gray-700 p-1 mt-2"
+              className="block w-full text-center text-xs cursor-pointer text-gray-500 hover:text-gray-700 p-1 mt-2"
             >
               Close
             </button>

@@ -46,16 +46,8 @@ export default function EditCampaign() {
     const date = new Date(dateString)
     const today = new Date()
     
-    // Set both dates to midnight for proper comparison
     today.setHours(0, 0, 0, 0)
     date.setHours(0, 0, 0, 0)
-    
-    console.log('Date comparison:', {
-      dateString,
-      date: date.toISOString(),
-      today: today.toISOString(),
-      isPast: date < today
-    })
     
     return date < today
   }
@@ -65,16 +57,8 @@ export default function EditCampaign() {
     const date = new Date(dateString)
     const today = new Date()
     
-    // Set both dates to midnight for proper comparison
     today.setHours(0, 0, 0, 0)
     date.setHours(0, 0, 0, 0)
-    
-    console.log('Today check:', {
-      dateString,
-      date: date.toISOString(),
-      today: today.toISOString(),
-      isToday: date.getTime() === today.getTime()
-    })
     
     return date.getTime() === today.getTime()
   }
@@ -84,24 +68,20 @@ export default function EditCampaign() {
     
     // Case 1: Campaign is active and has already started (today or in the past) - cannot edit
     if (campaign.status === 'active' && (isDateInPast(campaign.start_date) || isDateToday(campaign.start_date))) {
-      console.log('Cannot edit: Campaign is active and has already started')
       return false
     }
     
     // Case 2: Campaign is scheduled for the future (start date is in the future) - can edit
     if (!isDateInPast(campaign.start_date) && !isDateToday(campaign.start_date)) {
-      console.log('Can edit: Campaign is scheduled for the future')
       return true
     }
     
     // Case 3: Campaign is paused or completed - can edit regardless of dates
     if (campaign.status === 'paused' || campaign.status === 'completed') {
-      console.log('Can edit: Campaign is paused or completed')
       return true
     }
     
-    // Default case: cannot edit
-    console.log('Cannot edit: Default case')
+
     return false
   }
 
@@ -153,7 +133,6 @@ export default function EditCampaign() {
         end_date: data.end_date ? new Date(data.end_date).toISOString().split('T')[0] : ''
       }
 
-      console.log('Loaded campaign:', formattedData)
 
       setCampaign(formattedData)
       setFormData({
@@ -235,7 +214,7 @@ export default function EditCampaign() {
         <div className="mb-8">
           <button
             onClick={() => params?.id && router.push(`/dashboard/campaigns/${params.id}`)}
-            className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500 mb-4"
+            className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500 mb-4 cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Campaign
@@ -423,7 +402,7 @@ export default function EditCampaign() {
                     key={niche}
                     type="button"
                     onClick={() => handleNicheChange(niche)}
-                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
+                    className={`inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-sm font-medium ${
                       formData.target_niche.includes(niche)
                         ? 'bg-indigo-100 text-indigo-700'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -471,14 +450,14 @@ export default function EditCampaign() {
             <button
               type="button"
               onClick={() => params?.id && router.push(`/dashboard/campaigns/${params.id}`)}
-              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              className="rounded-md cursor-pointer bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
+              className="rounded-md cursor-pointer bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
             >
               <Save className="h-4 w-4 mr-2 inline" />
               {saving ? 'Saving...' : 'Save Changes'}

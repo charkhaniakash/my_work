@@ -24,13 +24,11 @@ async function triggerCampaignActivation() {
     });
     
     if (!response.ok) {
-      console.error('Failed to activate campaigns:', await response.text());
       return;
     }
     
     const result = await response.json();
     if (result.activatedCount > 0) {
-      console.log(`Activated ${result.activatedCount} scheduled campaigns`);
     }
   } catch (error) {
     console.error('Error activating scheduled campaigns:', error);
@@ -51,7 +49,6 @@ async function triggerCampaignExpiration() {
     
     const result = await response.json();
     if (result.expiredCount > 0) {
-      console.log(`Expired ${result.expiredCount} campaigns`);
     }
   } catch (error) {
     console.error('Error expiring campaigns:', error);
@@ -126,7 +123,7 @@ export default function DashboardLayout({
       {/* Mobile sidebar */}
       <div className="lg:hidden">
         <button
-          className="fixed top-4 left-4 p-2 bg-white rounded-md shadow-md z-50"
+          className="fixed top-4 left-4 p-2 bg-white rounded-md shadow-md z-50 cursor-pointer"
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -174,7 +171,7 @@ export default function DashboardLayout({
                         </div>
                         <button
                           onClick={handleLogout}
-                          className="p-2 text-gray-400 hover:text-gray-500"
+                          className="p-2 text-gray-400 hover:text-gray-500 cur"
                           title="Logout"
                         >
                           <LogOut className="h-5 w-5" />

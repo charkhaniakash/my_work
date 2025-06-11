@@ -345,7 +345,7 @@ export default function NotificationCenter() {
         
         <button
           onClick={handleRefresh}
-          className="text-gray-500 hover:text-gray-700"
+          className="text-gray-500 cursor-pointer hover:text-gray-700"
           title="Refresh notifications"
         >
           <RefreshCw className="h-5 w-5" />
@@ -395,16 +395,16 @@ export default function NotificationCenter() {
           <div className="flex items-end space-x-2">
             <button
               onClick={() => markAllAsRead()}
-              className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer"
               disabled={loading}
             >
-              <Check className="mr-1.5 h-4 w-4 text-gray-400" />
+              <Check className="mr-1.5 h-4 w-4 text-gray-400 cursor-pointer" />
               Mark All Read
             </button>
             
             <button
               onClick={() => clearAllNotifications()}
-              className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer"
               disabled={loading}
             >
               <Trash2 className="mr-1.5 h-4 w-4 text-gray-400" />
@@ -424,7 +424,7 @@ export default function NotificationCenter() {
             <div className="flex space-x-2">
               <button
                 onClick={() => markAsRead(selectedIds)}
-                className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer"
                 disabled={loading}
               >
                 <Check className="mr-1.5 h-4 w-4 text-gray-400" />
@@ -433,7 +433,7 @@ export default function NotificationCenter() {
               
               <button
                 onClick={() => deleteNotifications(selectedIds)}
-                className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer"
                 disabled={loading}
               >
                 <Trash2 className="mr-1.5 h-4 w-4 text-gray-400" />
@@ -556,14 +556,14 @@ export default function NotificationCenter() {
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
                 >
                   Next
                 </button>
@@ -581,7 +581,7 @@ export default function NotificationCenter() {
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 cursor-pointer"
                     >
                       <span className="sr-only">Previous</span>
                       <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -632,7 +632,7 @@ export default function NotificationCenter() {
                     <button
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 cursor-pointer"
                     >
                       <span className="sr-only">Next</span>
                       <ChevronRight className="h-5 w-5" aria-hidden="true" />

@@ -203,7 +203,7 @@ export default function Campaigns() {
         {user?.user_metadata?.role === 'brand' && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-x-2 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors duration-200"
+            className="inline-flex items-center gap-x-2 cursor-pointer rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors duration-200"
           >
             <Plus className="-ml-0.5 h-5 w-5" aria-hidden="true" />
             Create Campaign
@@ -228,7 +228,7 @@ export default function Campaigns() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="block w-full sm:w-48 pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          className="block w-full sm:w-48 pl-3 pr-10 py-2 text-base border border-gray-300 cursor-pointer focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
@@ -257,7 +257,7 @@ export default function Campaigns() {
               <div className="mt-6">
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="inline-flex items-center px-4 py-2 cursor-pointer border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <Plus className="-ml-1 mr-2 h-5 w-5" />
                   Create Campaign
@@ -552,7 +552,7 @@ export default function Campaigns() {
                           <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                             <button
                               type="submit"
-                              className="inline-flex w-full justify-center rounded-md bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-700 hover:to-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all duration-200 sm:ml-3 sm:w-auto"
+                              className="inline-flex w-full justify-center cursor-pointer rounded-md bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-700 hover:to-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all duration-200 sm:ml-3 sm:w-auto"
                             >
                               Create Campaign
                             </button>

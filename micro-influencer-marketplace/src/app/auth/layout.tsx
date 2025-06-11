@@ -19,7 +19,6 @@ export default function AuthLayout({
       
       // If there's an active session, redirect to dashboard
       if (data?.session) {
-        console.log('User already logged in, redirecting from auth page to dashboard');
         router.replace('/dashboard');
       }
     };

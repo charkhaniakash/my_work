@@ -90,7 +90,6 @@ export default function AvailableCampaigns() {
   }
 
   const handleApply = async (e: React.FormEvent) => {
-    console.log('handleApply')
     e.preventDefault()
     if (!user?.id || !selectedCampaign) return
 
@@ -220,7 +219,7 @@ export default function AvailableCampaigns() {
           <div className="mt-4 space-y-2">
             <button
               onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}
-              className="w-full rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
+              className="w-full rounded-md cursor-pointer bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
             >
               View Details
             </button>
@@ -231,7 +230,7 @@ export default function AvailableCampaigns() {
                   setSelectedCampaign(campaign)
                   setShowApplyModal(true)
                 }}
-                className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="w-full rounded-md cursor-pointer bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 Apply Now
               </button>
@@ -239,7 +238,7 @@ export default function AvailableCampaigns() {
               <button
                 disabled
                 title={applicationEligibility.reason}
-                className="w-full rounded-md bg-gray-300 px-3 py-2 text-sm font-semibold text-gray-500 shadow-sm cursor-not-allowed"
+                className="w-full rounded-md bg-gray-300 px-3 py-2 text-sm font-semibold text-gray-500 shadow-sm cursor-not-allowed cursor-pointer"
               >
                 {hasApplied ? 'Applied' : applicationEligibility.reason || 'Cannot Apply'}
               </button>
@@ -367,7 +366,7 @@ export default function AvailableCampaigns() {
                   <button
                     type="button"
                     onClick={() => setShowApplyModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
                   >
                     Cancel
                   </button>

@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClientComponentClient()
   const router = useRouter()
 
+
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
@@ -59,16 +60,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
 
         // Handle different auth events
-        if (event === 'SIGNED_IN') {
-          router.push('/dashboard')
-        } else if (event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_OUT') {
           router.push('/auth/sign-in')
-        }
+        } 
+        // else if (event === 'SIGNED_OUT') {
+        //   router.push('/auth/sign-in')
+        // }
         
         // Only refresh if the session state actually changed
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          router.refresh()
-        }
+        // if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        //   router.refresh()
+        // }
       }
     )
 

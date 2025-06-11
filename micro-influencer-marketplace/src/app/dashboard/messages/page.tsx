@@ -125,11 +125,8 @@ export default function Messages() {
         ) || []
         
         if (unreadMessages.length > 0) {
-          console.log(`Marking ${unreadMessages.length} messages as read`)
-          // Use the hook's markAsRead function instead of direct DB update
           try {
             await markAsRead(conversation.id, user.id)
-            console.log('Messages marked as read successfully')
           } catch (markError) {
             console.error('Error marking messages as read:', markError)
           }
@@ -272,7 +269,6 @@ export default function Messages() {
                   
                   if (conversation) {
                     await markAsRead(conversation.id, user.id)
-                    console.log('Automatically marked new message as read')
                   }
                 } catch (error) {
                   console.error('Error marking new message as read:', error)
@@ -425,7 +421,7 @@ export default function Messages() {
             <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
             <button
               onClick={() => setShowNewConversation(true)}
-              className="p-1 rounded-full hover:bg-gray-100"
+              className="p-1 rounded-full hover:bg-gray-100 cursor-pointer"
               title="New conversation"
             >
               <Plus className="h-5 w-5 text-gray-500" />
@@ -584,7 +580,7 @@ export default function Messages() {
                 <button
                   type="submit"
                   disabled={!newMessage.trim() || sendingMessage}
-                  className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {sendingMessage ? (
                     <ButtonLoader />
@@ -605,7 +601,7 @@ export default function Messages() {
               </p>
               <button
                 onClick={() => setShowNewConversation(true)}
-                className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+                className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 cursor-pointer"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 New Conversation

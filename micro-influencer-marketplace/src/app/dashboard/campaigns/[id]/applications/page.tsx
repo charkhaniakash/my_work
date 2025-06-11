@@ -38,7 +38,6 @@ export default function CampaignApplications() {
     try {
       // First check if we're authenticated
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      console.log("Current session:", session)
       
       if (sessionError) {
         console.error("Session error:", sessionError)
@@ -52,7 +51,6 @@ export default function CampaignApplications() {
         .eq('id', session?.user?.id)
         .single()
       
-      console.log("User role:", userData?.role)
 
       const { data: applications, error } = await supabase
         .from('campaign_applications')
@@ -63,8 +61,6 @@ export default function CampaignApplications() {
         .eq('campaign_id', params?.id)
         .order('created_at', { ascending: false })
 
-      console.log("applicationsapplications", applications)
-      console.log("Error if any:", error)
       
       if (error) throw error
       setApplications(applications || [])

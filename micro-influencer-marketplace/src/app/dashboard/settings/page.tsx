@@ -51,7 +51,6 @@ export default function Settings() {
   const supabase = createClientComponentClient()
 
 
-  console.log("formDataformDataformData")
   useEffect(() => {
     if (!userLoading && user) {
       loadProfile()
@@ -62,7 +61,6 @@ export default function Settings() {
   const loadProfile = async () => {
     if (!user) return
     try {
-      console.log('Loading profile for user:', user.id)
       
       // Load user data
       const { data: userData, error: userError } = await supabase

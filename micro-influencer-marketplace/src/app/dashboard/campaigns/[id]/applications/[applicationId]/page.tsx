@@ -153,7 +153,7 @@ export default function ApplicationDetail() {
         <div className="mt-6">
           <button
             onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications`)}
-            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="inline-flex cursor-pointer items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Back to Applications
           </button>
@@ -170,7 +170,7 @@ export default function ApplicationDetail() {
       <div className="mb-6">
         <button 
           onClick={() => router.push(`/dashboard/campaigns/${params?.id}/applications`)}
-          className="flex items-center text-gray-600 hover:text-gray-900"
+          className="flex items-center text-gray-600 hover:text-gray-900 cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-md px-3 py-2 text-sm font-semibold"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Applications
@@ -256,14 +256,14 @@ export default function ApplicationDetail() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleStatusUpdate('accepted')}
-                      className="inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500"
+                      className="inline-flex items-center cursor-pointer rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500"
                     >
                       <CheckCircle className="-ml-0.5 mr-1.5 h-5 w-5" />
                       Accept
                     </button>
                     <button
                       onClick={() => handleStatusUpdate('rejected')}
-                      className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+                      className="inline-flex items-center cursor-pointer rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
                     >
                       <XCircle className="-ml-0.5 mr-1.5 h-5 w-5" />
                       Reject
@@ -274,7 +274,7 @@ export default function ApplicationDetail() {
                 {canPay && (
                   <button
                     onClick={() => setShowPayment(true)}
-                    className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+                    className="inline-flex items-center cursor-pointer rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
                   >
                     <Banknote className="-ml-0.5 mr-1.5 h-5 w-5" />
                     Make Payment

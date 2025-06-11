@@ -10,7 +10,6 @@ export async function POST(req: Request) {
   let body;
   try {
     body = await req.json();
-    console.log('Simple checkout request body:', body);
   } catch (err) {
     console.error('Error parsing request body:', err);
     return NextResponse.json(
@@ -56,13 +55,6 @@ async function createSimpleCheckout(params?: any) {
       },
       quantity: 1,
     };
-
-    // Log the metadata being passed
-    console.log('Creating checkout session with metadata:', {
-      campaignId: params?.campaignId || '',
-      brandId: params?.brandId || '',
-      influencerId: params?.influencerId || '',
-    });
 
     // Create a checkout session
     const session = await stripe.checkout.sessions.create({

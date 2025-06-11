@@ -6,11 +6,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  console.log(`User API called for ID: ${params.id}`);
-  
   try {
     if (!params.id || params.id === 'undefined') {
-      console.log('Invalid user ID provided');
       return NextResponse.json(
         { message: 'Invalid user ID provided' },
         { status: 400 }
@@ -20,20 +17,17 @@ export async function GET(
     const supabase = createRouteHandlerClient({ cookies });
     
     // Check authentication
-    console.log('Checking user authentication');
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
     if (!session) {
-      console.error('Authentication error: No session found');
       return NextResponse.json(
         { message: 'Unauthorized. Please sign in to access this resource.' },
         { status: 401 }
       );
     }
 
-    console.log(`Fetching user data for ID ${params.id}`);
     // Get user data from public.users table - using only columns that exist in schema
     const { data: user, error } = await supabase
       .from('users')
@@ -68,7 +62,6 @@ export async function GET(
       );
     }
 
-    console.log('Successfully returning user data');
     return NextResponse.json(user);
   } catch (error: any) {
     console.error('Server error in user endpoint:', error);

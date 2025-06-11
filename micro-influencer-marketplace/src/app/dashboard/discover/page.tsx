@@ -34,7 +34,6 @@ export default function Discover() {
           influencer_profile:influencer_profiles(*)
         `)
 
-        console.log("query", query)
 
       // Apply filters
       if (filters.role !== 'all') {
@@ -49,7 +48,6 @@ export default function Discover() {
 
       const { data, error } = await query
 
-      console.log("data", data)
       if (error) throw error
       setProfiles(data || [])
     } catch (error) {

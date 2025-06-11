@@ -56,7 +56,6 @@ export async function middleware(req: NextRequest) {
 
     // If user is signed in and trying to access auth pages, redirect to dashboard
     if (isLoggedIn && isAuthPath) {
-      console.log('User is already logged in. Redirecting from auth page to dashboard.');
       const redirectUrl = new URL('/dashboard', req.url)
       return NextResponse.redirect(redirectUrl)
     }
@@ -68,7 +67,6 @@ export async function middleware(req: NextRequest) {
         await supabase.auth.signOut();
       }
       
-      console.log('User is not logged in. Redirecting to sign-in page.');
       const redirectUrl = new URL('/auth/sign-in', req.url)
       return NextResponse.redirect(redirectUrl)
     }

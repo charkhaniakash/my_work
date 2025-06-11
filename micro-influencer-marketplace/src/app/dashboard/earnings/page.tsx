@@ -17,17 +17,6 @@ export default function EarningsPage() {
     return user.role === 'influencer' || user.user_metadata?.role === 'influencer';
   };
   
-  // Log user details for debugging
-  useEffect(() => {
-    if (user) {
-      console.log('User data in earnings page:', {
-        id: user.id,
-        role: user.role,
-        metadata: user.user_metadata
-      });
-    }
-  }, [user]);
-  
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/sign-in');
