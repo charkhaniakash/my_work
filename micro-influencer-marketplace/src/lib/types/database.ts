@@ -7,45 +7,13 @@ export interface User {
   id: string
   email: string
   full_name: string
-  role: UserRole
   avatar_url?: string
-  profile_image?: string
-  username?: string
-  bio?: string
-  location?: string
-  niches?: string[]
+  role: 'brand' | 'influencer'
   created_at: string
   updated_at: string
-  last_login: string | null
-  is_verified: boolean
-  influencer_profile?: {
-    id: string
-    user_id: string
-    bio: string | null
-    niche: string[]
-    location: string | null
-    pricing_tier: PricingTier
-    min_rate: number
-    max_rate: number
-    languages: string[]
-    social_links: {
-      instagram?: string
-      tiktok?: string
-      youtube?: string
-      twitter?: string
-      linkedin?: string
-    }
-    created_at: string
-    updated_at: string
-  }
-  brand_profiles?: {
-    company_name?: string
-    website?: string
-    industry?: string
-    company_size?: string
-    location?: string
-    description?: string
-    budget_range?: string
+  user_metadata?: {
+    full_name?: string
+    role?: string
   }
 }
 
@@ -132,17 +100,13 @@ export interface TypingUser {
 
 export interface Message {
   id: string
-  conversation_id: string
   sender_id: string
   receiver_id: string
   content: string
-  is_read: boolean
-  campaign_id: string | null
   created_at: string
-  updated_at: string
-  // Join fields
-  attachments?: MessageAttachment[]
-  sender?: User
+  conversation_id: string
+  is_read: boolean
+  delivered: boolean
 }
 
 export interface Conversation {
@@ -173,6 +137,19 @@ export type CampaignTemplate = {
   created_at: string;
   updated_at: string;
 };
+
+export interface UserPresence {
+  user_id: string
+  online: boolean
+  last_seen: string
+}
+
+export interface TypingStatus {
+  conversation_id: string
+  user_id: string
+  is_typing: boolean
+  timestamp: string
+}
 
 export interface Database {
   public: {
@@ -221,6 +198,16 @@ export interface Database {
         Row: TypingUser
         Insert: Omit<TypingUser, 'id' | 'last_typed'>
         Update: Partial<Omit<TypingUser, 'id' | 'conversation_id' | 'user_id'>>
+      }
+      user_presence: {
+        Row: UserPresence
+        Insert: Omit<UserPresence, 'last_seen'>
+        Update: Partial<Omit<UserPresence, 'user_id'>>
+      }
+      typing_status: {
+        Row: TypingStatus
+        Insert: Omit<TypingStatus, 'timestamp'>
+        Update: Partial<Omit<TypingStatus, 'conversation_id' | 'user_id'>>
       }
     }
   }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,6 +22,7 @@ export default function InfluencerDiscovery() {
   const [location, setLocation] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClientComponentClient()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     setMounted(true)
@@ -200,9 +201,10 @@ export default function InfluencerDiscovery() {
         }
       }))
 
-      // Refetch invitations to update UI
-      // You might want to use React Query's invalidation here
-      router.refresh()
+      // Invalidate relevant queries to trigger refetch
+      await queryClient.invalidateQueries({ queryKey: ['invitations'] })
+      await queryClient.invalidateQueries({ queryKey: ['applications'] })
+
     } catch (error: any) {
       console.error('Error sending invitation:', error)
       toast.error(error.message || 'Failed to send invitation')
@@ -440,7 +442,7 @@ export default function InfluencerDiscovery() {
                               <Button
                                 size="sm"
                                 onClick={() => handleInvite(influencer.id, campaign.id)}
-                                className="text-xs px-2 py-1"
+                                className="text-xs px-2 py-1 cursor-pointer"
                               >
                                 Invite
                               </Button>
@@ -452,7 +454,7 @@ export default function InfluencerDiscovery() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleInvite(influencer.id, campaign.id)}
-                                className="text-xs px-2 py-1"
+                                className="text-xs px-2 py-1 cursor-pointer"
                               >
                                 Re-invite
                               </Button>

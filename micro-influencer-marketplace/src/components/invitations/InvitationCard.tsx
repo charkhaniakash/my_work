@@ -260,6 +260,7 @@ export default function InvitationCard({
             size="sm"
             disabled={isLoading}
             onClick={handleDecline}
+            className='text-red-600 cursor-pointer'
           >
             <X className="h-4 w-4 mr-1" />
             Decline
@@ -268,6 +269,7 @@ export default function InvitationCard({
             size="sm"
             disabled={isLoading}
             onClick={() => setShowAcceptModal(true)}
+            className='cursor-pointer'
           >
             <Check className="h-4 w-4 mr-1" />
             Accept

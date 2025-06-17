@@ -33,6 +33,18 @@ export async function middleware(req: NextRequest) {
   const isPublicPath = publicPaths.some(path => pathname === path)
   const isAuthPath = authPaths.some(path => pathname === path || pathname.startsWith(path))
   const isStaticAsset = pathname.match(/\.(js|css|svg|png|jpg|jpeg|gif|ico|ttf|woff|woff2)$/)
+ 
+
+  const restrictedRoutes = [
+    {
+      pathPrefix: '/dashboard/invitations/discover',
+      restrictedRoles: ['influencer'],
+    },
+    {
+      pathPrefix: '/dashboard/analytics',
+      restrictedRoles: ['influencer'],
+    },
+  ]
   
   // Skip session check for static assets
   if (isStaticAsset) {
@@ -42,6 +54,7 @@ export async function middleware(req: NextRequest) {
   try {
     // Get session (this refreshes the session if not expired)
     const { data: { session }, error } = await supabase.auth.getSession()
+    const role = session?.user?.user_metadata?.role
     
     if (error) {
       console.error('Middleware auth error:', error)
@@ -69,6 +82,17 @@ export async function middleware(req: NextRequest) {
       
       const redirectUrl = new URL('/auth/sign-in', req.url)
       return NextResponse.redirect(redirectUrl)
+    }
+
+    if (pathname.startsWith('/dashboard/invitations/discover') && role === 'influencer') {
+      return NextResponse.redirect(new URL('/not-found', req.url))
+    }
+
+
+    for (const route of restrictedRoutes) {
+      if (pathname.startsWith(route.pathPrefix) && route.restrictedRoles.includes(role)) {
+        return NextResponse.redirect(new URL('/not-found', req.url))
+      }
     }
 
     return res

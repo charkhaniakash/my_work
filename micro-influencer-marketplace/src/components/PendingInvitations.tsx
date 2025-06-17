@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import InvitationCard from '../invitations/InvitationCard'
+import InvitationCard from './invitations/InvitationCard'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'

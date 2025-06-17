@@ -397,7 +397,7 @@ export default function CampaignDetail() {
               {new Date(campaign.start_date).toLocaleDateString()} -{' '}
               {new Date(campaign.end_date).toLocaleDateString()}
             </div>
-            {campaign.status === 'scheduled' && (
+            {campaign.status === 'scheduled' && new Date(campaign.start_date) > new Date() && (
               <div className="mt-2 flex items-center text-sm text-yellow-600">
                 <Clock className="mr-1.5 h-5 w-5 flex-shrink-0 text-yellow-400" />
                 Scheduled to start on {new Date(campaign.start_date).toLocaleDateString()}

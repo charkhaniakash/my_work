@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   title: 'Micro Influencer Marketplace',
   description: 'Connect brands with micro influencers',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.png', 
+  },
 }
 
 // Separate viewport export

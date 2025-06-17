@@ -66,29 +66,35 @@ export default function EditCampaign() {
   const canEditStartDate = () => {
     if (!campaign) return true
     
-    // Case 1: Campaign is active and has already started (today or in the past) - cannot edit
+    // Case 1: Campaign is completed - cannot edit start date
+    if (campaign.status === 'completed') {
+      return false
+    }
+    
+    // Case 2: Campaign is active and has already started - cannot edit
     if (campaign.status === 'active' && (isDateInPast(campaign.start_date) || isDateToday(campaign.start_date))) {
       return false
     }
     
-    // Case 2: Campaign is scheduled for the future (start date is in the future) - can edit
+    // Case 3: Campaign is scheduled for future - can edit
     if (!isDateInPast(campaign.start_date) && !isDateToday(campaign.start_date)) {
       return true
     }
     
-    // Case 3: Campaign is paused or completed - can edit regardless of dates
-    if (campaign.status === 'paused' || campaign.status === 'completed') {
-      return true
+    // Case 4: Campaign is paused - can edit if not started yet
+    if (campaign.status === 'paused') {
+      return !isDateInPast(campaign.start_date) && !isDateToday(campaign.start_date)
     }
-    
 
     return false
   }
 
   const canEditEndDate = () => {
     if (!campaign) return true
-    // Can always edit end date unless campaign is completed
-    return campaign.status !== 'completed'
+    
+    // Can always edit end date, even for completed campaigns
+    // This allows adjusting when a campaign ended
+    return true
   }
 
   const getMinStartDate = () => {

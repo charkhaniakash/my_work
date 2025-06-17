@@ -8,6 +8,8 @@ import { toast } from 'react-hot-toast'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageLoader, CampaignCardSkeleton } from '@/components/loaders'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 const nichesOptions = [
   'Fashion',
@@ -71,27 +73,27 @@ export default function Campaigns() {
 
   const determineCampaignStatus = (startDate: string) => {
     if (!startDate) return 'active'
-    
+
     const now = new Date()
     const start = new Date(startDate)
-    
+
     // Set time to start of day for proper comparison
     now.setHours(0, 0, 0, 0)
     start.setHours(0, 0, 0, 0)
-    
+
     return start > now ? 'scheduled' : 'active'
   }
 
   const isScheduledCampaign = (startDate: string) => {
     if (!startDate) return false
-    
+
     const now = new Date()
     const start = new Date(startDate)
-    
+
     // Set time to start of day for proper comparison
     now.setHours(0, 0, 0, 0)
     start.setHours(0, 0, 0, 0)
-    
+
     return start > now
   }
 
@@ -106,7 +108,7 @@ export default function Campaigns() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       // Validate required fields
       if (!formData.title || !formData.description || !formData.budget || !formData.start_date || !formData.end_date) {
@@ -149,7 +151,7 @@ export default function Campaigns() {
 
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         campaign.description.toLowerCase().includes(searchQuery.toLowerCase())
+      campaign.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -167,7 +169,7 @@ export default function Campaigns() {
             </p>
           </div>
         </div>
-        
+
         {/* Loading skeleton */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -201,13 +203,13 @@ export default function Campaigns() {
           </p>
         </div>
         {user?.user_metadata?.role === 'brand' && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-x-2 cursor-pointer rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors duration-200"
-          >
-            <Plus className="-ml-0.5 h-5 w-5" aria-hidden="true" />
-            Create Campaign
-          </button>
+          <div className="flex items-center gap-2">
+            <Button asChild className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800">
+              <Link href="/dashboard/campaigns/new">Create Campaign</Link>
+            </Button>
+          </div>
+
+
         )}
       </div>
 
@@ -249,7 +251,7 @@ export default function Campaigns() {
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No campaigns found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchQuery || statusFilter !== 'all' 
+              {searchQuery || statusFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria'
                 : 'Get started by creating a new campaign'}
             </p>
@@ -260,7 +262,7 @@ export default function Campaigns() {
                   className="inline-flex items-center px-4 py-2 cursor-pointer border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <Plus className="-ml-1 mr-2 h-5 w-5" />
-                  Create Campaign
+                  Create Quick Campaign
                 </button>
               </div>
             )}
@@ -285,29 +287,41 @@ export default function Campaigns() {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <h3 className="text-lg font-medium text-gray-900 truncate">
-                            {campaign.title}
-                          </h3>
-                          <p className="text-sm text-gray-500 truncate">
-                            {campaign.description}
-                          </p>
+                        <h3
+  className="text-lg font-medium text-gray-900"
+  title={campaign.title}
+>
+  {campaign.title.length > 30
+    ? `${campaign.title.slice(0, 30)}...`
+    : campaign.title}
+</h3>
+
+<p
+  className="text-sm text-gray-500"
+  title={campaign.description}
+>
+  {campaign.description.length > 30
+    ? `${campaign.description.slice(0, 30)}...`
+    : campaign.description}
+</p>
+
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-4 space-y-3">
                       <div className="flex items-center text-sm text-gray-500">
                         <DollarSign className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                         <span>${campaign.budget}</span>
                       </div>
-                      
+
                       <div className="flex items-center text-sm text-gray-500">
                         <Calendar className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                         <span>
                           {new Date(campaign.start_date).toLocaleDateString()} - {new Date(campaign.end_date).toLocaleDateString()}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center text-sm text-gray-500">
                         <Users className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                         <span>{campaign.target_location || 'Any location'}</span>
@@ -325,7 +339,7 @@ export default function Campaigns() {
                           </span>
                         ))}
                       </div>
-                      
+
                       <div className="flex items-center">
                         {campaign.status === 'scheduled' ? (
                           <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
@@ -473,8 +487,8 @@ export default function Campaigns() {
                                 value={formData.start_date}
                                 onChange={(e) => {
                                   const newStartDate = e.target.value
-                                  setFormData(prev => ({ 
-                                    ...prev, 
+                                  setFormData(prev => ({
+                                    ...prev,
                                     start_date: newStartDate
                                   }))
                                 }}
@@ -522,11 +536,10 @@ export default function Campaigns() {
                                   key={niche}
                                   type="button"
                                   onClick={() => handleNicheChange(niche)}
-                                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-                                    formData.target_niche?.includes(niche)
+                                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${formData.target_niche?.includes(niche)
                                       ? 'bg-indigo-100 text-indigo-800'
                                       : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                                  }`}
+                                    }`}
                                 >
                                   {niche}
                                 </button>

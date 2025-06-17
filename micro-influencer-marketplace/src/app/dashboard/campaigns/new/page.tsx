@@ -9,6 +9,7 @@ import { CampaignTemplate } from '@/lib/types/database'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { createCampaignNotification } from '@/lib/services/notification-service'
 import { createNotification } from '@/lib/services/notification-service'
+import AiButton from '@/components/ui/AiButton'
 
 const NICHE_OPTIONS = [
   'Fashion',
@@ -59,29 +60,60 @@ export default function NewCampaign() {
     loadTemplates()
   }, [user?.id])
 
+  const generateCampaignWithAI = async () => {
+    try {
+      setSaving(true)
+      const response = await fetch('/api/campaigns/aiAgent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche: formData.target_niche[0] || 'Lifestyle' }) // optionally pass niche
+      })
+
+      if (!response.ok) throw new Error('Failed to generate campaign')
+
+      const aiData = await response.json()
+
+      setFormData(prev => ({
+        ...prev,
+        title: aiData.title,
+        description: aiData.description,
+        budget: aiData.budget,
+        requirements: aiData.requirements,
+        deliverables: aiData.deliverables
+      }))
+      toast.success('AI campaign generated!')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to generate with AI')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+
   const determineCampaignStatus = (startDate: string) => {
     if (!startDate) return 'active'
-    
+
     const now = new Date()
     const start = new Date(startDate)
-    
+
     // Set time to start of day for proper comparison
     now.setHours(0, 0, 0, 0)
     start.setHours(0, 0, 0, 0)
-    
+
     return start > now ? 'scheduled' : 'active'
   }
 
   const isScheduledCampaign = (startDate: string) => {
     if (!startDate) return false
-    
+
     const now = new Date()
     const start = new Date(startDate)
-    
+
     // Set time to start of day for proper comparison
     now.setHours(0, 0, 0, 0)
     start.setHours(0, 0, 0, 0)
-    
+
     return start > now
   }
 
@@ -92,7 +124,7 @@ export default function NewCampaign() {
     try {
       setSaving(true)
       const campaignStatus = determineCampaignStatus(formData.start_date)
-      
+
       const { data, error } = await supabase
         .from('campaigns')
         .insert({
@@ -119,9 +151,9 @@ export default function NewCampaign() {
 
           // Send notification to each influencer
           const brandName = user.user_metadata?.full_name || user.email || 'A brand'
-          
+
           await Promise.all(
-            influencers.map(influencer => 
+            influencers.map(influencer =>
               createCampaignNotification(
                 influencer.id,
                 data.title,
@@ -147,9 +179,9 @@ export default function NewCampaign() {
           // Send notification to each influencer about the scheduled campaign
           const brandName = user.user_metadata?.full_name || user.email || 'A brand'
           const startDateFormatted = new Date(formData.start_date).toLocaleDateString();
-          
+
           await Promise.all(
-            influencers.map(influencer => 
+            influencers.map(influencer =>
               createNotification({
                 userId: influencer.id,
                 title: 'Upcoming Campaign',
@@ -205,7 +237,7 @@ export default function NewCampaign() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div>
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
             Create New Campaign
           </h2>
@@ -214,13 +246,16 @@ export default function NewCampaign() {
           </p>
         </div>
 
+        <AiButton saving={saving} label="Generate Campaign With AI" onClick={generateCampaignWithAI} />
+
+
         {templates.length > 0 && (
           <div className="bg-white shadow sm:rounded-lg p-6 mb-8">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Use a Template</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {templates.map((template) => (
-                <div 
-                  key={template.id} 
+                <div
+                  key={template.id}
                   className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
                   onClick={() => handleTemplateSelect(template)}
                 >
@@ -307,8 +342,8 @@ export default function NewCampaign() {
                     value={formData.start_date}
                     onChange={(e) => {
                       const newStartDate = e.target.value
-                      setFormData(prev => ({ 
-                        ...prev, 
+                      setFormData(prev => ({
+                        ...prev,
                         start_date: newStartDate,
                         status: determineCampaignStatus(newStartDate)
                       }))
@@ -380,11 +415,10 @@ export default function NewCampaign() {
                     key={niche}
                     type="button"
                     onClick={() => handleNicheChange(niche)}
-                    className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
-                      formData.target_niche.includes(niche)
+                    className={`inline-flex items-center rounded-full cursor-pointer px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${formData.target_niche.includes(niche)
                         ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     <Tag className="mr-1.5 h-4 w-4" />
                     {niche}
@@ -430,14 +464,14 @@ export default function NewCampaign() {
             <button
               type="button"
               onClick={() => router.push('/dashboard/campaigns')}
-              className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors duration-200"
+              className="rounded-md bg-white cursor-pointer px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors duration-200"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center rounded-md bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-700 hover:to-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 transition-all duration-200"
+              className="inline-flex items-center rounded-md bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-700 hover:to-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 transition-all duration-200 cursor-pointer"
             >
               {saving ? 'Creating...' : 'Create Campaign'}
             </button>

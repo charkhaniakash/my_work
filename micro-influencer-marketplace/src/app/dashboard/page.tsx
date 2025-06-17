@@ -9,7 +9,7 @@ import RecommendedCampaigns from '@/components/campaigns/RecommendedCampaigns'
 import { RecentCampaigns } from '@/components/campaigns/RecentCampaigns'
 import { ClientOnly } from '@/components/client-only'
 import { User } from '@supabase/supabase-js'
-import PendingInvitations from '@/components/dashboard/PendingInvitations'
+import PendingInvitations from '@/components/PendingInvitations'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { TrendingUp, DollarSign, Users, BarChart3, ArrowUpRight } from 'lucide-react'
 
