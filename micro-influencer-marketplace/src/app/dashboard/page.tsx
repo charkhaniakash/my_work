@@ -12,6 +12,7 @@ import { User } from '@supabase/supabase-js'
 import PendingInvitations from '@/components/PendingInvitations'
 import { useSupabase } from '@/lib/providers/supabase-provider'
 import { TrendingUp, DollarSign, Users, BarChart3, ArrowUpRight } from 'lucide-react'
+import ChatInterface from '@/components/ChatInterface'
 
 // export const metadata = {
 //   title: 'Dashboard',
@@ -20,8 +21,52 @@ import { TrendingUp, DollarSign, Users, BarChart3, ArrowUpRight } from 'lucide-r
 
 export default function DashboardPage() {
   const { supabase, user } = useSupabase();
+  const [dashboardSessionId, setDashboardSessionId] = useState<string | null>(null);
+
+  // Create or retrieve dashboard session
+  useEffect(() => {
+    const createOrGetDashboardSession = async () => {
+      if (!user) return;
+      
+      try {
+        // Check if dashboard session exists
+        const { data: existingSessions } = await supabase
+          .from('chat_sessions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('title', 'Dashboard Support')
+          .limit(1);
+        
+        if (existingSessions && existingSessions.length > 0) {
+          setDashboardSessionId(existingSessions[0].id);
+        } else {
+          // Create a new dashboard session
+          const { data: newSession, error } = await supabase
+            .from('chat_sessions')
+            .insert({
+              user_id: user.id,
+              title: 'Dashboard Support'
+            })
+            .select()
+            .single();
+          
+          if (error) {
+            console.error('Error creating dashboard session:', error);
+          } else {
+            setDashboardSessionId(newSession.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error setting up dashboard chat:', error);
+      }
+    };
+    
+    createOrGetDashboardSession();
+  }, [user, supabase]);
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {user?.user_metadata?.role === 'brand' && (
       <DashboardHeader
         heading="Dashboard"
         text="Overview of your account"
@@ -32,6 +77,15 @@ export default function DashboardPage() {
           </Button>
         </div>
       </DashboardHeader>
+      )}      
+
+
+
+      {/* <div>
+        <h1 className="text-xl font-semibold mb-4">Chat Support</h1>
+        {dashboardSessionId && <ChatInterface sessionId={dashboardSessionId} />}
+        {!dashboardSessionId && <div className="p-4 bg-white rounded-lg shadow">Loading chat support...</div>}
+      </div> */}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Message */}

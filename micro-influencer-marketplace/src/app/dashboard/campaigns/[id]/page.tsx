@@ -109,16 +109,17 @@ export default function CampaignDetail() {
   const loadCampaign = async () => {
     try {
       const { data, error } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('id', params?.id)
-        .single()
+      .from('campaigns')
+      .select('*')
+      .eq('id', params?.id)
+    
+    console.log('Query results:', data) // This will show you what's actually returned
 
       if (error) {
         console.error('Error loading campaign:', error)
         throw error
       }
-      setCampaign(data)
+      setCampaign(data ? data[0] : null)
     } catch (error) {
       console.error('Error loading campaign:', error)
       toast.error('Failed to load campaign details')

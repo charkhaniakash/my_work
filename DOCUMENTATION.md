@@ -159,4 +159,6 @@ Potential future enhancements could include:
 *   Campaign templates and recommendation engine.
 *   Mobile application development.
 
+##  ChatBot Architecture (LangChain.js + Supabase + Next.js)
+
 This documentation provides a solid foundation for understanding the Micro-Influencer Marketplace project. 

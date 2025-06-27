@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { QueryProvider } from '@/lib/providers/query-provider'
 import VisibilityProvider from '@/components/VisibilityProvider'
+import CoroverChatbot from '@/components/CoroverChatbot'
 // import MessageNotification from '@/components/MessageNotification'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -69,6 +70,8 @@ export default function RootLayout({
             </VisibilityProvider>
           </QueryProvider>
         </SupabaseProvider>
+
+        <CoroverChatbot/>
       </body>
     </html>
   )
